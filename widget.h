@@ -39,6 +39,7 @@ private slots:
     void onAddUser(class QTableWidget *table);
     void onEditUser(class QTableWidget *table);
     void onDeleteUser(class QTableWidget *table);
+    void onImportBooks(QTableWidget *table);
 
 private:
     Ui::Widget *ui;

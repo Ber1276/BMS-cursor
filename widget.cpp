@@ -23,6 +23,13 @@
 #include <QLabel>
 #include <QThread>
 #include <QProgressDialog>
+#include <QFile>
+#include <QTextStream>
+#include <QRegularExpression>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QtConcurrent>
+#include <QFutureWatcher>
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -117,9 +124,11 @@ QPushButton:pressed {
     QPushButton *btnAdd = new QPushButton("添加图书", bookPage);
     QPushButton *btnEdit = new QPushButton("修改图书", bookPage);
     QPushButton *btnDelete = new QPushButton("删除图书", bookPage);
+    QPushButton *btnImportBooks = new QPushButton("批量导入", bookPage);
     btnLayout->addWidget(btnAdd);
     btnLayout->addWidget(btnEdit);
     btnLayout->addWidget(btnDelete);
+    btnLayout->addWidget(btnImportBooks);
     btnLayout->addStretch();
     bookLayout->addLayout(btnLayout);
     bookLayout->addWidget(bookTable);
@@ -199,6 +208,7 @@ QPushButton:pressed {
     connect(btnAdd, &QPushButton::clicked, [this, bookTable]{ onAddBook(bookTable); });
     connect(btnEdit, &QPushButton::clicked, [this, bookTable]{ onEditBook(bookTable); });
     connect(btnDelete, &QPushButton::clicked, [this, bookTable]{ onDeleteBook(bookTable); });
+    connect(btnImportBooks, &QPushButton::clicked, [this, bookTable]{ onImportBooks(bookTable); });
     // 借阅管理功能信号槽
     connect(btnBorrowBook, &QPushButton::clicked, [this, borrowTable]{ onBorrowBook(borrowTable); });
     connect(btnReturnBook, &QPushButton::clicked, [this, borrowTable]{ onReturnBook(borrowTable); });
@@ -236,6 +246,7 @@ QPushButton:pressed {
     btnAdd->setStyleSheet(btnStyle);
     btnEdit->setStyleSheet(btnStyle);
     btnDelete->setStyleSheet(btnStyle);
+    btnImportBooks->setStyleSheet(btnStyle);
     btnBorrowBook->setStyleSheet(btnStyle);
     btnReturnBook->setStyleSheet(btnStyle);
     btnRenewBook->setStyleSheet(btnStyle);
@@ -255,6 +266,9 @@ QPushButton:pressed {
         font-weight: bold;
         border: none;
         height: 32px;
+    }
+    QTableWidget::item {
+        color: #222;
     }
     QTableWidget::item:selected {
         background: #b2bec3;
@@ -661,5 +675,81 @@ void Widget::onDeleteUser(QTableWidget *table)
         }
         refreshUserTable(table);
     }
+}
+
+void Widget::onImportBooks(QTableWidget *table)
+{
+    QString fileName = QFileDialog::getOpenFileName(this, "选择书籍文件", "", "Text Files (*.txt);;All Files (*)");
+    if (fileName.isEmpty()) return;
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "打开失败", "无法打开文件！");
+        return;
+    }
+
+    // 统计总行数
+    int totalLines = 0;
+    while (!file.atEnd()) {
+        file.readLine();
+        ++totalLines;
+    }
+    file.seek(0);
+
+    QProgressDialog *progress = new QProgressDialog("正在导入书籍...", "取消", 0, totalLines, this);
+    progress->setWindowModality(Qt::WindowModal);
+    progress->setMinimumDuration(0);
+    progress->setValue(0);
+
+    QFutureWatcher<int> *watcher = new QFutureWatcher<int>(this);
+    connect(progress, &QProgressDialog::canceled, watcher, &QFutureWatcher<int>::cancel);
+
+    auto importTask = [fileName, totalLines, this, progress, watcher]() -> int {
+        QFile file(fileName);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return 0;
+        QTextStream in(&file);
+        int count = 0;
+        int progressStep = qMax(1, totalLines / 1000);
+        while (!in.atEnd()) {
+            if (watcher->isCanceled()) break;
+            QString line = in.readLine().trimmed();
+            if (line.isEmpty()) continue;
+            QString jsonStr = line;
+            jsonStr.replace("'", "\"");
+            QJsonParseError err;
+            QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8(), &err);
+            if (err.error != QJsonParseError::NoError || !doc.isObject()) continue;
+            QJsonObject obj = doc.object();
+            QString isbn = obj.value("ISBN").toString();
+            QString title = obj.value("书名").toString();
+            QString author = obj.value("作者").toString();
+            QString publisher = obj.value("出版社").toString();
+            int year = obj.value("出版年限").toInt();
+            if (isbn.isEmpty() || title.isEmpty() || author.isEmpty() || publisher.isEmpty() || year == 0) continue;
+            try {
+                Book book(isbn.toStdString(), title.toStdString(), author.toStdString(), publisher.toStdString(), year);
+                bookManager.addBook(book);
+            } catch (...) {
+                // 重复或异常跳过
+            }
+            ++count;
+            if (count % progressStep == 0) {
+                QMetaObject::invokeMethod(progress, "setValue", Qt::QueuedConnection, Q_ARG(int, count));
+            }
+        }
+        QMetaObject::invokeMethod(progress, "setValue", Qt::QueuedConnection, Q_ARG(int, totalLines));
+        return count;
+    };
+
+    connect(watcher, &QFutureWatcher<int>::finished, [=]{
+        progress->close();
+        refreshBookTable(table);
+        QMessageBox::information(this, "导入完成", QString("成功导入%1条书籍信息。\n(如有重复或异常已自动跳过)").arg(watcher->result()));
+        watcher->deleteLater();
+        progress->deleteLater();
+    });
+
+    watcher->setFuture(QtConcurrent::run(importTask));
+    progress->exec();
 }
 
