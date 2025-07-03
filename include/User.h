@@ -36,6 +36,8 @@ public:
     MyVector<User> fuzzyFindUsers(const std::string& keyword) const;
     MyVector<User> findAndSortUsers(const std::string& keyword, bool ascending = true) const;
     bool adminRemoveUsers(const MyVector<std::string>& usernames);
+    bool loadFromFile(const std::string& filename);
+    bool saveToFile(const std::string& filename) const;
 };
 
 #endif // USER_H

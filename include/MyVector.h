@@ -178,4 +178,13 @@ public:
         }
         return -1;
     }
+    void clear() {
+        size = 0;
+        if constexpr (std::is_same<T, User>::value) {
+            rebuildHashTable();
+        }
+        if constexpr (std::is_same<T, Book>::value) {
+            rebuildBookHashTable();
+        }
+    }
 }; 

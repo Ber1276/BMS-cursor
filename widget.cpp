@@ -30,6 +30,7 @@
 #include <QJsonObject>
 #include <QtConcurrent>
 #include <QFutureWatcher>
+#include <QCoreApplication>
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -42,6 +43,7 @@ Widget::Widget(QWidget *parent)
     // setAttribute(Qt::WA_TranslucentBackground);
     borrowManager = new BorrowManager(&bookManager, &userManager);
     permissionManager = new PermissionManager(&userManager);
+    userManager.loadFromFile(QCoreApplication::applicationDirPath().toStdString() + "/users.json"); // 启动时加载
     setupCustomUi();
 }
 
@@ -203,7 +205,13 @@ QPushButton:pressed {
     // 信号槽
     connect(btnBook, &QPushButton::clicked, [this, stack]{ stack->setCurrentIndex(0); });
     connect(btnBorrow, &QPushButton::clicked, [this, stack]{ stack->setCurrentIndex(1); });
-    connect(btnUser, &QPushButton::clicked, [this, stack]{ stack->setCurrentIndex(2); });
+    connect(btnUser, &QPushButton::clicked, [this, stack, userTable]{
+        if (!isLoggedIn) {
+            showLoginDialog(userTable);
+            if (!isLoggedIn) return; // 未登录不切换
+        }
+        stack->setCurrentIndex(2);
+    });
     // 图书管理功能信号槽
     connect(btnAdd, &QPushButton::clicked, [this, bookTable]{ onAddBook(bookTable); });
     connect(btnEdit, &QPushButton::clicked, [this, bookTable]{ onEditBook(bookTable); });
@@ -596,6 +604,7 @@ void Widget::onAddUser(QTableWidget *table)
         try {
             User user(username.toStdString(), password.toStdString(), role);
             userManager.addUser(user);
+            userManager.saveToFile(QCoreApplication::applicationDirPath().toStdString() + "/users.json");
             refreshUserTable(table);
         } catch (const std::exception &e) {
             QMessageBox::warning(this, "添加失败", e.what());
@@ -652,6 +661,7 @@ void Widget::onEditUser(QTableWidget *table)
                 QMessageBox::warning(this, "修改失败", "未找到原用户或更新失败。");
                 return;
             }
+            userManager.saveToFile(QCoreApplication::applicationDirPath().toStdString() + "/users.json");
             refreshUserTable(table);
         } catch (const std::exception &e) {
             QMessageBox::warning(this, "修改失败", e.what());
@@ -673,6 +683,7 @@ void Widget::onDeleteUser(QTableWidget *table)
             QMessageBox::warning(this, "删除失败", "未找到该用户或删除失败。");
             return;
         }
+        userManager.saveToFile(QCoreApplication::applicationDirPath().toStdString() + "/users.json");
         refreshUserTable(table);
     }
 }
@@ -751,5 +762,102 @@ void Widget::onImportBooks(QTableWidget *table)
 
     watcher->setFuture(QtConcurrent::run(importTask));
     progress->exec();
+}
+
+void Widget::showLoginDialog(QTableWidget *userTable)
+{
+    while (!isLoggedIn) {
+        QDialog dialog(this);
+        dialog.setWindowTitle("用户登录");
+        QFormLayout form(&dialog);
+        QLineEdit *usernameEdit = new QLineEdit(&dialog);
+        QLineEdit *passwordEdit = new QLineEdit(&dialog);
+        passwordEdit->setEchoMode(QLineEdit::Password);
+        form.addRow("用户名:", usernameEdit);
+        form.addRow("密码:", passwordEdit);
+        QPushButton *btnLogin = new QPushButton("登录", &dialog);
+        QPushButton *btnRegister = new QPushButton("注册", &dialog);
+        QHBoxLayout *btnLayout = new QHBoxLayout();
+        btnLayout->addWidget(btnLogin);
+        btnLayout->addWidget(btnRegister);
+        form.addRow(btnLayout);
+        QObject::connect(btnLogin, &QPushButton::clicked, [&]{
+            QString username = usernameEdit->text().trimmed();
+            QString password = passwordEdit->text();
+            if (loginUser(username, password)) {
+                QMessageBox::information(this, "登录成功", "欢迎，" + username + "！");
+                dialog.accept();
+            } else {
+                QMessageBox::warning(this, "登录失败", "用户名或密码错误。");
+            }
+        });
+        QObject::connect(btnRegister, &QPushButton::clicked, [&]{
+            dialog.reject(); // 关闭登录框
+        });
+        int ret = dialog.exec();
+        if (ret == QDialog::Accepted && isLoggedIn) {
+            break;
+        } else if (ret == QDialog::Rejected && !isLoggedIn) {
+            showRegisterDialog(userTable); // 注册后自动弹回登录
+        }
+    }
+}
+
+void Widget::showRegisterDialog(QTableWidget *userTable)
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle("用户注册");
+    QFormLayout form(&dialog);
+    QLineEdit *usernameEdit = new QLineEdit(&dialog);
+    QLineEdit *passwordEdit = new QLineEdit(&dialog);
+    passwordEdit->setEchoMode(QLineEdit::Password);
+    QComboBox *roleCombo = new QComboBox(&dialog);
+    roleCombo->addItem("普通用户", USER);
+    roleCombo->addItem("管理员", ADMIN);
+    form.addRow("用户名:", usernameEdit);
+    form.addRow("密码:", passwordEdit);
+    form.addRow("角色:", roleCombo);
+    QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    form.addRow(&buttonBox);
+    QObject::connect(&buttonBox, &QDialogButtonBox::accepted, [&]{
+        QString username = usernameEdit->text().trimmed();
+        QString password = passwordEdit->text();
+        Role role = static_cast<Role>(roleCombo->currentData().toInt());
+        if (registerUser(username, password, role)) {
+            QMessageBox::information(this, "注册成功", "注册成功，请登录。");
+            dialog.accept();
+        } else {
+            QMessageBox::warning(this, "注册失败", "用户名已存在或输入无效。");
+        }
+    });
+    QObject::connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    dialog.exec();
+}
+
+bool Widget::loginUser(const QString &username, const QString &password)
+{
+    if (username.isEmpty() || password.isEmpty()) return false;
+    const User* user = userManager.findUser(username.toStdString());
+    if (user && user->password == password.toStdString()) {
+        isLoggedIn = true;
+        currentUser = username;
+        return true;
+    }
+    return false;
+}
+
+bool Widget::registerUser(const QString &username, const QString &password, Role role)
+{
+    if (username.isEmpty() || password.isEmpty()) return false;
+    if (userManager.findUser(username.toStdString())) return false;
+    try {
+        User user(username.toStdString(), password.toStdString(), role);
+        userManager.addUser(user);
+        userManager.saveToFile(QCoreApplication::applicationDirPath().toStdString() + "/users.json");
+        refreshUserTable(nullptr);
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 

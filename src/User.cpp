@@ -1,6 +1,10 @@
- #include "../include/User.h"
+#include "../include/User.h"
 #include "../include/Mysort.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 void UserManager::addUser(const User &user){
     auto getUsername = [](const User& user) -> std::string { return user.username; };
@@ -87,4 +91,40 @@ bool UserManager::adminRemoveUsers(const MyVector<std::string>& usernames){
         }
     }
     return allRemoved;
+}
+
+bool UserManager::saveToFile(const std::string& filename) const {
+    std::ofstream ofs(filename, std::ios::out | std::ios::trunc);
+    if (!ofs.is_open()) return false;
+    for (size_t i = 0; i < users.getSize(); ++i) {
+        const User& user = users[i];
+        QJsonObject obj;
+        obj["username"] = QString::fromStdString(user.username);
+        obj["password"] = QString::fromStdString(user.password);
+        obj["role"] = user.role;
+        QJsonDocument doc(obj);
+        ofs << doc.toJson(QJsonDocument::Compact).toStdString() << std::endl;
+    }
+    ofs.close();
+    return true;
+}
+
+bool UserManager::loadFromFile(const std::string& filename) {
+    std::ifstream ifs(filename);
+    if (!ifs.is_open()) return false;
+    users.clear();
+    std::string line;
+    while (std::getline(ifs, line)) {
+        if (line.empty()) continue;
+        QJsonParseError err;
+        QJsonDocument doc = QJsonDocument::fromJson(QString::fromStdString(line).toUtf8(), &err);
+        if (err.error != QJsonParseError::NoError || !doc.isObject()) continue;
+        QJsonObject obj = doc.object();
+        std::string username = obj.value("username").toString().toStdString();
+        std::string password = obj.value("password").toString().toStdString();
+        Role role = static_cast<Role>(obj.value("role").toInt());
+        users.add(User(username, password, role));
+    }
+    ifs.close();
+    return true;
 }

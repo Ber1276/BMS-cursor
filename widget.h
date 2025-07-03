@@ -48,5 +48,11 @@ private:
     BorrowManager *borrowManager;
     PermissionManager *permissionManager;
     void setupCustomUi();
+    void showLoginDialog(QTableWidget *userTable);
+    void showRegisterDialog(QTableWidget *userTable);
+    bool loginUser(const QString &username, const QString &password);
+    bool registerUser(const QString &username, const QString &password, Role role);
+    bool isLoggedIn = false;
+    QString currentUser;
 };
 #endif // WIDGET_H
