@@ -241,9 +241,11 @@ QPushButton:pressed {
     QPushButton *btnAddUser = new QPushButton("添加用户", userPage);
     QPushButton *btnEditUser = new QPushButton("修改用户", userPage);
     QPushButton *btnDeleteUser = new QPushButton("删除用户", userPage);
+    QPushButton *btnRefreshUser = new QPushButton("刷新用户", userPage);
     userBtnLayout->addWidget(btnAddUser);
     userBtnLayout->addWidget(btnEditUser);
     userBtnLayout->addWidget(btnDeleteUser);
+    userBtnLayout->addWidget(btnRefreshUser);
     userBtnLayout->addStretch();
     userLayout->addLayout(userBtnLayout);
     userLayout->addWidget(userTable);
@@ -334,6 +336,7 @@ QPushButton:pressed {
     connect(btnAddUser, &QPushButton::clicked, this,[this, userTable]{ onAddUser(userTable); });
     connect(btnEditUser, &QPushButton::clicked, this,[this, userTable]{ onEditUser(userTable); });
     connect(btnDeleteUser, &QPushButton::clicked, this,[this, userTable]{ onDeleteUser(userTable); });
+    connect(btnRefreshUser, &QPushButton::clicked, this,[this, userTable]{ refreshUserTable(userTable); });
     
     // 窗口控制信号槽
     connect(btnMin, &QPushButton::clicked, this, &QWidget::showMinimized);
@@ -372,6 +375,7 @@ QPushButton:pressed {
     btnAddUser->setStyleSheet(btnStyle);
     btnEditUser->setStyleSheet(btnStyle);
     btnDeleteUser->setStyleSheet(btnStyle);
+    btnRefreshUser->setStyleSheet(btnStyle);
 
     QString tableStyle = R"(
     QTableWidget {
