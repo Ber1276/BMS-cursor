@@ -28,7 +28,7 @@
 #include <QRegularExpression>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QtConcurrent>
+#include <QtConcurrentRun>
 #include <QFutureWatcher>
 #include <QCoreApplication>
 #include <QApplication>
@@ -271,32 +271,32 @@ QPushButton:pressed {
     
     // 导航按钮信号槽 - 使用全局权限检查
     connect(btnBook, &QPushButton::clicked, this ,[this](){ switchToPage(BOOK_PAGE); });
-    connect(btnBorrow, &QPushButton::clicked, [this]{ checkPermissionAndNavigate(BORROW_PAGE, USER); });
-    connect(btnUser, &QPushButton::clicked, [this]{ checkPermissionAndNavigate(USER_PAGE, ADMIN); });
+    connect(btnBorrow, &QPushButton::clicked, this,[this]{ checkPermissionAndNavigate(BORROW_PAGE, USER); });
+    connect(btnUser, &QPushButton::clicked, this,[this]{ checkPermissionAndNavigate(USER_PAGE, ADMIN); });
     
     // 图书管理功能信号槽 - 增删改操作需要管理员权限
-    connect(btnAdd, &QPushButton::clicked, [this, bookTable]{ 
+    connect(btnAdd, &QPushButton::clicked, this,[this, bookTable]{
         if (hasPermission(ADMIN)) {
             onAddBook(bookTable); 
         } else {
             QMessageBox::warning(this, "权限不足", "只有管理员才能添加图书。");
         }
     });
-    connect(btnEdit, &QPushButton::clicked, [this, bookTable]{ 
+    connect(btnEdit, &QPushButton::clicked, this,[this, bookTable]{
         if (hasPermission(ADMIN)) {
             onEditBook(bookTable); 
         } else {
             QMessageBox::warning(this, "权限不足", "只有管理员才能修改图书。");
         }
     });
-    connect(btnDelete, &QPushButton::clicked, [this, bookTable]{ 
+    connect(btnDelete, &QPushButton::clicked, this,[this, bookTable]{
         if (hasPermission(ADMIN)) {
             onDeleteBook(bookTable); 
         } else {
             QMessageBox::warning(this, "权限不足", "只有管理员才能删除图书。");
         }
     });
-    connect(btnImportBooks, &QPushButton::clicked, [this, bookTable]{ 
+    connect(btnImportBooks, &QPushButton::clicked, this,[this, bookTable]{
         if (hasPermission(ADMIN)) {
             onImportBooks(bookTable); 
         } else {
@@ -305,21 +305,21 @@ QPushButton:pressed {
     });
     
     // 借阅管理功能信号槽 - 需要登录，普通用户只能操作自己的记录
-    connect(btnBorrowBook, &QPushButton::clicked, [this, borrowTable]{ 
+    connect(btnBorrowBook, &QPushButton::clicked, this,[this, borrowTable]{
         if (isLoggedIn) {
             onBorrowBook(borrowTable); 
         } else {
             QMessageBox::warning(this, "未登录", "请先登录后再进行借书操作。");
         }
     });
-    connect(btnReturnBook, &QPushButton::clicked, [this, borrowTable]{ 
+    connect(btnReturnBook, &QPushButton::clicked, this,[this, borrowTable]{
         if (isLoggedIn) {
             onReturnBook(borrowTable); 
         } else {
             QMessageBox::warning(this, "未登录", "请先登录后再进行还书操作。");
         }
     });
-    connect(btnRenewBook, &QPushButton::clicked, [this, borrowTable]{ 
+    connect(btnRenewBook, &QPushButton::clicked, this,[this, borrowTable]{
         if (isLoggedIn) {
             onRenewBook(borrowTable); 
         } else {
@@ -328,13 +328,13 @@ QPushButton:pressed {
     });
     
     // 用户管理功能信号槽
-    connect(btnAddUser, &QPushButton::clicked, [this, userTable]{ onAddUser(userTable); });
-    connect(btnEditUser, &QPushButton::clicked, [this, userTable]{ onEditUser(userTable); });
-    connect(btnDeleteUser, &QPushButton::clicked, [this, userTable]{ onDeleteUser(userTable); });
+    connect(btnAddUser, &QPushButton::clicked, this,[this, userTable]{ onAddUser(userTable); });
+    connect(btnEditUser, &QPushButton::clicked, this,[this, userTable]{ onEditUser(userTable); });
+    connect(btnDeleteUser, &QPushButton::clicked, this,[this, userTable]{ onDeleteUser(userTable); });
     
     // 窗口控制信号槽
     connect(btnMin, &QPushButton::clicked, this, &QWidget::showMinimized);
-    connect(btnMax, &QPushButton::clicked, [this, btnMax]{
+    connect(btnMax, &QPushButton::clicked, this,[this, btnMax]{
         if (isMaximized()) {
             showNormal();
             btnMax->setText("□");
@@ -494,7 +494,7 @@ bool Widget::showGlobalLoginDialog()
     btnCancel->setStyleSheet(cancelBtnStyle);
     
     // 连接信号槽
-    connect(btnLogin, &QPushButton::clicked, [&]{
+    connect(btnLogin, &QPushButton::clicked, this,[this, usernameEdit, passwordEdit, &dialog]{
         QString username = usernameEdit->text().trimmed();
         QString password = passwordEdit->text();
         
@@ -511,7 +511,7 @@ bool Widget::showGlobalLoginDialog()
         }
     });
     
-    connect(btnRegister, &QPushButton::clicked, [&]{
+    connect(btnRegister, &QPushButton::clicked, this,[&]{
         dialog.reject();
         showGlobalRegisterDialog();
     });
@@ -519,8 +519,8 @@ bool Widget::showGlobalLoginDialog()
     connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject);
     
     // 回车键登录
-    connect(usernameEdit, &QLineEdit::returnPressed, [&]{ btnLogin->click(); });
-    connect(passwordEdit, &QLineEdit::returnPressed, [&]{ btnLogin->click(); });
+    connect(usernameEdit, &QLineEdit::returnPressed, this,[&]{ btnLogin->click(); });
+    connect(passwordEdit, &QLineEdit::returnPressed, this,[&]{ btnLogin->click(); });
     
     int result = dialog.exec();
     return (result == QDialog::Accepted && isLoggedIn);
@@ -602,7 +602,7 @@ bool Widget::showGlobalRegisterDialog()
     btnCancel->setStyleSheet(cancelBtnStyle);
     
     // 连接信号槽
-    connect(btnRegister, &QPushButton::clicked, [&]{
+    connect(btnRegister, &QPushButton::clicked, this,[&]{
         QString username = usernameEdit->text().trimmed();
         QString password = passwordEdit->text();
         QString confirmPassword = confirmPasswordEdit->text();
@@ -635,9 +635,9 @@ bool Widget::showGlobalRegisterDialog()
     connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject);
     
     // 回车键注册
-    connect(usernameEdit, &QLineEdit::returnPressed, [&]{ passwordEdit->setFocus(); });
-    connect(passwordEdit, &QLineEdit::returnPressed, [&]{ confirmPasswordEdit->setFocus(); });
-    connect(confirmPasswordEdit, &QLineEdit::returnPressed, [&]{ btnRegister->click(); });
+    connect(usernameEdit, &QLineEdit::returnPressed, this,[&]{ passwordEdit->setFocus(); });
+    connect(passwordEdit, &QLineEdit::returnPressed, this,[&]{ confirmPasswordEdit->setFocus(); });
+    connect(confirmPasswordEdit, &QLineEdit::returnPressed, this,[&]{ btnRegister->click(); });
     
     int result = dialog.exec();
     return (result == QDialog::Accepted);
@@ -1339,7 +1339,7 @@ void Widget::onImportBooks(QTableWidget *table)
         return count;
     };
 
-    connect(watcher, &QFutureWatcher<int>::finished, [=]{
+    connect(watcher, &QFutureWatcher<int>::finished, this,[=]{
         progress->close();
         refreshBookTable(table);
         QMessageBox::information(this, "导入完成", QString("成功导入%1条书籍信息。\n(如有重复或异常已自动跳过)").arg(watcher->result()));
