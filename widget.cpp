@@ -75,6 +75,7 @@ void Widget::setupCustomUi()
 {
     // 右上角窗口控制按钮
     QWidget *titleBar = new QWidget(this);
+    titleBar->setObjectName("titleBar");
     titleBar->setFixedHeight(36);
     titleBar->setStyleSheet("background: transparent;");
     QHBoxLayout *titleLayout = new QHBoxLayout(titleBar);
@@ -83,11 +84,13 @@ void Widget::setupCustomUi()
     
     // 添加登录状态显示
     QLabel *loginStatusLabel = new QLabel("未登录", titleBar);
+    loginStatusLabel->setObjectName("loginStatusLabel");
     loginStatusLabel->setStyleSheet("color: #666; font-size: 12px; margin-right: 10px;");
     titleLayout->addWidget(loginStatusLabel);
     
     // 添加登出按钮
     QPushButton *btnLogout = new QPushButton("登出", titleBar);
+    btnLogout->setObjectName("btnLogout");
     btnLogout->setStyleSheet(R"(
         QPushButton {
             background: #ff9800;
@@ -745,33 +748,23 @@ void Widget::updateBorrowPageTitle()
 // 更新登录状态显示
 void Widget::updateLoginStatus()
 {
-    // 查找标题栏中的登录状态标签和登出按钮并更新
-    QWidget *titleBar = findChild<QWidget*>();
+    // 精确查找标题栏中的登录状态标签和登出按钮并更新
+    QWidget *titleBar = findChild<QWidget*>("titleBar");
     if (titleBar) {
-        QList<QLabel*> labels = titleBar->findChildren<QLabel*>();
-        QList<QPushButton*> buttons = titleBar->findChildren<QPushButton*>();
-        
-        // 更新登录状态标签
-        for (QLabel* label : labels) {
-            if (label->text() == "未登录" || label->text().contains("用户：")) {
-                if (isLoggedIn) {
-                    QString roleText = (currentUserRole == ADMIN) ? "管理员" : "普通用户";
-                    label->setText(QString("用户：%1 (%2)").arg(currentUser).arg(roleText));
-                    label->setStyleSheet("color: #4CAF50; font-size: 12px; margin-right: 10px; font-weight: bold;");
-                } else {
-                    label->setText("未登录");
-                    label->setStyleSheet("color: #666; font-size: 12px; margin-right: 10px;");
-                }
-                break;
+        QLabel *loginStatusLabel = titleBar->findChild<QLabel*>("loginStatusLabel");
+        QPushButton *btnLogout = titleBar->findChild<QPushButton*>("btnLogout");
+        if (loginStatusLabel) {
+            if (isLoggedIn) {
+                QString roleText = (currentUserRole == ADMIN) ? "管理员" : "普通用户";
+                loginStatusLabel->setText(QString("用户：%1 (%2)").arg(currentUser).arg(roleText));
+                loginStatusLabel->setStyleSheet("color: #4CAF50; font-size: 12px; margin-right: 10px; font-weight: bold;");
+            } else {
+                loginStatusLabel->setText("未登录");
+                loginStatusLabel->setStyleSheet("color: #666; font-size: 12px; margin-right: 10px;");
             }
         }
-        
-        // 更新登出按钮显示状态
-        for (QPushButton* button : buttons) {
-            if (button->text() == "登出") {
-                button->setVisible(isLoggedIn);
-                break;
-            }
+        if (btnLogout) {
+            btnLogout->setVisible(isLoggedIn);
         }
     }
     
