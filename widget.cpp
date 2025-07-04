@@ -190,6 +190,13 @@ QPushButton:pressed {
     // 借阅管理页
     QWidget *borrowPage = new QWidget(this);
     QVBoxLayout *borrowLayout = new QVBoxLayout(borrowPage);
+    
+    // 添加页面标题
+    QLabel *borrowTitleLabel = new QLabel("借阅管理", borrowPage);
+    borrowTitleLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: #333; margin: 10px;");
+    borrowTitleLabel->setAlignment(Qt::AlignCenter);
+    borrowLayout->addWidget(borrowTitleLabel);
+    
     QTableWidget *borrowTable = new QTableWidget(borrowPage);
     borrowTable->setColumnCount(7);
     QStringList borrowHeaders;
@@ -267,16 +274,58 @@ QPushButton:pressed {
     connect(btnBorrow, &QPushButton::clicked, [this]{ checkPermissionAndNavigate(BORROW_PAGE, USER); });
     connect(btnUser, &QPushButton::clicked, [this]{ checkPermissionAndNavigate(USER_PAGE, ADMIN); });
     
-    // 图书管理功能信号槽
-    connect(btnAdd, &QPushButton::clicked, [this, bookTable]{ onAddBook(bookTable); });
-    connect(btnEdit, &QPushButton::clicked, [this, bookTable]{ onEditBook(bookTable); });
-    connect(btnDelete, &QPushButton::clicked, [this, bookTable]{ onDeleteBook(bookTable); });
-    connect(btnImportBooks, &QPushButton::clicked, [this, bookTable]{ onImportBooks(bookTable); });
+    // 图书管理功能信号槽 - 增删改操作需要管理员权限
+    connect(btnAdd, &QPushButton::clicked, [this, bookTable]{ 
+        if (hasPermission(ADMIN)) {
+            onAddBook(bookTable); 
+        } else {
+            QMessageBox::warning(this, "权限不足", "只有管理员才能添加图书。");
+        }
+    });
+    connect(btnEdit, &QPushButton::clicked, [this, bookTable]{ 
+        if (hasPermission(ADMIN)) {
+            onEditBook(bookTable); 
+        } else {
+            QMessageBox::warning(this, "权限不足", "只有管理员才能修改图书。");
+        }
+    });
+    connect(btnDelete, &QPushButton::clicked, [this, bookTable]{ 
+        if (hasPermission(ADMIN)) {
+            onDeleteBook(bookTable); 
+        } else {
+            QMessageBox::warning(this, "权限不足", "只有管理员才能删除图书。");
+        }
+    });
+    connect(btnImportBooks, &QPushButton::clicked, [this, bookTable]{ 
+        if (hasPermission(ADMIN)) {
+            onImportBooks(bookTable); 
+        } else {
+            QMessageBox::warning(this, "权限不足", "只有管理员才能批量导入图书。");
+        }
+    });
     
-    // 借阅管理功能信号槽
-    connect(btnBorrowBook, &QPushButton::clicked, [this, borrowTable]{ onBorrowBook(borrowTable); });
-    connect(btnReturnBook, &QPushButton::clicked, [this, borrowTable]{ onReturnBook(borrowTable); });
-    connect(btnRenewBook, &QPushButton::clicked, [this, borrowTable]{ onRenewBook(borrowTable); });
+    // 借阅管理功能信号槽 - 需要登录，普通用户只能操作自己的记录
+    connect(btnBorrowBook, &QPushButton::clicked, [this, borrowTable]{ 
+        if (isLoggedIn) {
+            onBorrowBook(borrowTable); 
+        } else {
+            QMessageBox::warning(this, "未登录", "请先登录后再进行借书操作。");
+        }
+    });
+    connect(btnReturnBook, &QPushButton::clicked, [this, borrowTable]{ 
+        if (isLoggedIn) {
+            onReturnBook(borrowTable); 
+        } else {
+            QMessageBox::warning(this, "未登录", "请先登录后再进行还书操作。");
+        }
+    });
+    connect(btnRenewBook, &QPushButton::clicked, [this, borrowTable]{ 
+        if (isLoggedIn) {
+            onRenewBook(borrowTable); 
+        } else {
+            QMessageBox::warning(this, "未登录", "请先登录后再进行续借操作。");
+        }
+    });
     
     // 用户管理功能信号槽
     connect(btnAddUser, &QPushButton::clicked, [this, userTable]{ onAddUser(userTable); });
@@ -642,6 +691,7 @@ void Widget::switchToPage(int pageIndex)
                 break;
             case BORROW_PAGE:
                 btnBorrow->setStyleSheet("QPushButton{color:white;background:#444;border:none;font-size:16px;} QPushButton:hover{background:#555;}");
+                updateBorrowPageTitle();
                 break;
             case USER_PAGE:
                 btnUser->setStyleSheet("QPushButton{color:white;background:#444;border:none;font-size:16px;} QPushButton:hover{background:#555;}");
@@ -662,8 +712,34 @@ void Widget::showPermissionDeniedDialog()
 {
     QMessageBox::warning(this, "权限不足", 
         "您没有访问此功能的权限。\n"
-        "借阅管理需要普通用户权限，\n"
-        "用户管理需要管理员权限。");
+        "借阅管理需要登录，用户管理需要管理员权限。");
+}
+
+// 更新借阅管理页面标题
+void Widget::updateBorrowPageTitle()
+{
+    if (mainStack && mainStack->currentIndex() == BORROW_PAGE) {
+        QWidget *borrowPage = mainStack->widget(BORROW_PAGE);
+        if (borrowPage) {
+            QList<QLabel*> labels = borrowPage->findChildren<QLabel*>();
+            for (QLabel* label : labels) {
+                if (label->text().startsWith("借阅管理")) {
+                    QString title = "借阅管理";
+                    if (isLoggedIn) {
+                        if (hasPermission(ADMIN)) {
+                            title += " (管理员模式 - 可管理所有记录)";
+                        } else {
+                            title += QString(" (用户：%1 - 仅显示个人记录)").arg(currentUser);
+                        }
+                    } else {
+                        title += " (请登录)";
+                    }
+                    label->setText(title);
+                    break;
+                }
+            }
+        }
+    }
 }
 
 // 更新登录状态显示
@@ -697,6 +773,11 @@ void Widget::updateLoginStatus()
                 break;
             }
         }
+    }
+    
+    // 如果当前在借阅管理页面，更新页面标题
+    if (mainStack && mainStack->currentIndex() == BORROW_PAGE) {
+        updateBorrowPageTitle();
     }
 }
 
@@ -922,7 +1003,22 @@ void Widget::on_navImport_clicked(){}
 void Widget::refreshBorrowTable(QTableWidget *table)
 {
     table->setRowCount(0);
-    const auto &records = borrowManager->getAllBorrowRecords();
+    
+    if (!isLoggedIn) {
+        QMessageBox::warning(this, "未登录", "请先登录后再查看借阅记录。");
+        return;
+    }
+    
+    // 根据用户权限显示不同的记录
+    MyVector<BorrowRecord> records;
+    if (hasPermission(ADMIN)) {
+        // 管理员可以看到所有记录
+        records = borrowManager->getAllBorrowRecords();
+    } else {
+        // 普通用户只能看到自己的记录
+        records = borrowManager->getUserBorrowRecords(currentUser.toStdString());
+    }
+    
     for (size_t i = 0; i < records.getSize(); ++i) {
         table->insertRow(i);
         table->setItem(i, 0, new QTableWidgetItem(QString::number(records[i].getId())));
@@ -982,6 +1078,13 @@ void Widget::onReturnBook(QTableWidget *table)
         return;
     }
     
+    // 检查权限：普通用户只能归还自己的记录，管理员可以归还所有记录
+    QString recordUsername = table->item(row, 2)->text();
+    if (!hasPermission(ADMIN) && recordUsername != currentUser) {
+        QMessageBox::warning(this, "权限不足", "您只能归还自己的借阅记录。");
+        return;
+    }
+    
     int recordId = table->item(row, 0)->text().toInt();
     try {
         borrowManager->returnBook(recordId);
@@ -1002,6 +1105,13 @@ void Widget::onRenewBook(QTableWidget *table)
     int row = table->currentRow();
     if (row < 0) {
         QMessageBox::warning(this, "未选择", "请先选择要续借的借阅记录。");
+        return;
+    }
+    
+    // 检查权限：普通用户只能续借自己的记录，管理员可以续借所有记录
+    QString recordUsername = table->item(row, 2)->text();
+    if (!hasPermission(ADMIN) && recordUsername != currentUser) {
+        QMessageBox::warning(this, "权限不足", "您只能续借自己的借阅记录。");
         return;
     }
     

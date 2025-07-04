@@ -105,6 +105,7 @@ private:
     // 权限检查方法
     bool hasPermission(Role requiredRole);
     void showPermissionDeniedDialog();
+    void updateBorrowPageTitle();
     
     // 页面索引常量
     static const int BOOK_PAGE = 0;
