@@ -270,7 +270,7 @@ QPushButton:pressed {
     setLayout(outerLayout);
     
     // 导航按钮信号槽 - 使用全局权限检查
-    connect(btnBook, &QPushButton::clicked, [this]{ switchToPage(BOOK_PAGE); });
+    connect(btnBook, &QPushButton::clicked, this ,[this](){ switchToPage(BOOK_PAGE); });
     connect(btnBorrow, &QPushButton::clicked, [this]{ checkPermissionAndNavigate(BORROW_PAGE, USER); });
     connect(btnUser, &QPushButton::clicked, [this]{ checkPermissionAndNavigate(USER_PAGE, ADMIN); });
     
@@ -413,7 +413,7 @@ QPushButton:pressed {
 
     // 初始刷新
     refreshBookTable(bookTable);
-    refreshBorrowTable(borrowTable);
+    // refreshBorrowTable(borrowTable);
     refreshUserTable(userTable);
     
     // 更新登录状态显示

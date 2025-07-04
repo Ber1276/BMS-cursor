@@ -31,6 +31,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(BMS
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
+        include/Book.h include/BookManager.h include/BorrowManager.h include/BorrowRecord.h include/Mysort.h include/MyVector.h include/PermissionManager.h include/User.h
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET BMS APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
