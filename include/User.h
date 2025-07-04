@@ -38,6 +38,7 @@ public:
     bool adminRemoveUsers(const MyVector<std::string>& usernames);
     bool loadFromFile(const std::string& filename);
     bool saveToFile(const std::string& filename) const;
+    const MyVector<User>& getAllUsers() const { return users; }
 };
 
 #endif // USER_H

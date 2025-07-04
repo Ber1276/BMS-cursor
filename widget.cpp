@@ -31,24 +31,41 @@
 #include <QtConcurrent>
 #include <QFutureWatcher>
 #include <QCoreApplication>
+#include <QApplication>
+#include <QDir>
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
     , borrowManager(nullptr)
     , permissionManager(nullptr)
+    , mainStack(nullptr)
+    , btnBook(nullptr)
+    , btnBorrow(nullptr)
+    , btnUser(nullptr)
 {
     ui->setupUi(this);
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
-    // setAttribute(Qt::WA_TranslucentBackground);
+    
+    // 初始化管理器
     borrowManager = new BorrowManager(&bookManager, &userManager);
     permissionManager = new PermissionManager(&userManager);
-    userManager.loadFromFile(QCoreApplication::applicationDirPath().toStdString() + "/users.json"); // 启动时加载
+    
+    // 加载用户数据
+    loadUserData();
+    
+    // 设置UI
     setupCustomUi();
+    
+    // 默认显示图书管理页面（无需登录）
+    switchToPage(BOOK_PAGE);
 }
 
 Widget::~Widget()
 {
+    // 保存用户数据
+    saveUserData();
+    
     delete borrowManager;
     delete permissionManager;
     delete ui;
@@ -63,9 +80,38 @@ void Widget::setupCustomUi()
     QHBoxLayout *titleLayout = new QHBoxLayout(titleBar);
     titleLayout->setContentsMargins(0, 0, 8, 0);
     titleLayout->addStretch();
+    
+    // 添加登录状态显示
+    QLabel *loginStatusLabel = new QLabel("未登录", titleBar);
+    loginStatusLabel->setStyleSheet("color: #666; font-size: 12px; margin-right: 10px;");
+    titleLayout->addWidget(loginStatusLabel);
+    
+    // 添加登出按钮
+    QPushButton *btnLogout = new QPushButton("登出", titleBar);
+    btnLogout->setStyleSheet(R"(
+        QPushButton {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-right: 10px;
+        }
+        QPushButton:hover {
+            background: #f57c00;
+        }
+        QPushButton:pressed {
+            background: #e65100;
+        }
+    )");
+    btnLogout->setVisible(false); // 初始隐藏
+    titleLayout->addWidget(btnLogout);
+    
     QPushButton *btnMin = new QPushButton("-", titleBar);
     QPushButton *btnMax = new QPushButton("□", titleBar);
     QPushButton *btnClose = new QPushButton("×", titleBar);
+    
     QString winBtnStyle = R"(
 QPushButton {
     background: transparent;
@@ -98,17 +144,21 @@ QPushButton:pressed {
     QVBoxLayout *navLayout = new QVBoxLayout(navBar);
     navLayout->setSpacing(20);
     navLayout->setContentsMargins(0,40,0,40);
-    QPushButton *btnBook = new QPushButton("图书管理", navBar);
-    QPushButton *btnBorrow = new QPushButton("借阅管理", navBar);
-    QPushButton *btnUser = new QPushButton("用户管理", navBar);
+    
+    btnBook = new QPushButton("图书管理", navBar);
+    btnBorrow = new QPushButton("借阅管理", navBar);
+    btnUser = new QPushButton("用户管理", navBar);
+    
     for (auto btn : {btnBook, btnBorrow, btnUser}) {
         btn->setFixedHeight(40);
         btn->setStyleSheet("QPushButton{color:white;background:transparent;border:none;font-size:16px;} QPushButton:hover{background:#444;}");
         navLayout->addWidget(btn);
     }
     navLayout->addStretch();
+    
     // 主内容区
-    QStackedWidget *stack = new QStackedWidget(this);
+    mainStack = new QStackedWidget(this);
+    
     // 图书管理页
     QWidget *bookPage = new QWidget(this);
     QVBoxLayout *bookLayout = new QVBoxLayout(bookPage);
@@ -121,6 +171,7 @@ QPushButton:pressed {
     bookTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     bookTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     bookTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    
     // 操作按钮
     QHBoxLayout *btnLayout = new QHBoxLayout();
     QPushButton *btnAdd = new QPushButton("添加图书", bookPage);
@@ -134,7 +185,8 @@ QPushButton:pressed {
     btnLayout->addStretch();
     bookLayout->addLayout(btnLayout);
     bookLayout->addWidget(bookTable);
-    stack->addWidget(bookPage); // 图书管理页
+    mainStack->addWidget(bookPage);
+    
     // 借阅管理页
     QWidget *borrowPage = new QWidget(this);
     QVBoxLayout *borrowLayout = new QVBoxLayout(borrowPage);
@@ -147,6 +199,7 @@ QPushButton:pressed {
     borrowTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     borrowTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     borrowTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    
     // 操作按钮
     QHBoxLayout *borrowBtnLayout = new QHBoxLayout();
     QPushButton *btnBorrowBook = new QPushButton("借书", borrowPage);
@@ -158,7 +211,8 @@ QPushButton:pressed {
     borrowBtnLayout->addStretch();
     borrowLayout->addLayout(borrowBtnLayout);
     borrowLayout->addWidget(borrowTable);
-    stack->addWidget(borrowPage); // 借阅管理页
+    mainStack->addWidget(borrowPage);
+    
     // 用户管理页
     QWidget *userPage = new QWidget(this);
     QVBoxLayout *userLayout = new QVBoxLayout(userPage);
@@ -171,6 +225,7 @@ QPushButton:pressed {
     userTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     userTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     userTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    
     // 操作按钮
     QHBoxLayout *userBtnLayout = new QHBoxLayout();
     QPushButton *btnAddUser = new QPushButton("添加用户", userPage);
@@ -182,19 +237,23 @@ QPushButton:pressed {
     userBtnLayout->addStretch();
     userLayout->addLayout(userBtnLayout);
     userLayout->addWidget(userTable);
-    stack->addWidget(userPage); // 用户管理页
+    mainStack->addWidget(userPage);
+    
     // 主内容区背景色
-    stack->setStyleSheet("background:#f5f6fa; border-top-right-radius:16px; border-bottom-right-radius:16px;");
+    mainStack->setStyleSheet("background:#f5f6fa; border-top-right-radius:16px; border-bottom-right-radius:16px;");
+    
     // 各页面背景色
     bookPage->setStyleSheet("background:#f5f6fa;");
     borrowPage->setStyleSheet("background:#f5f6fa;");
     userPage->setStyleSheet("background:#f5f6fa;");
+    
     // 总体布局
     QHBoxLayout *mainLayout = new QHBoxLayout();
     mainLayout->setContentsMargins(0,0,0,0);
     mainLayout->setSpacing(0);
     mainLayout->addWidget(navBar);
-    mainLayout->addWidget(stack);
+    mainLayout->addWidget(mainStack);
+    
     // 嵌入到外层垂直布局
     QVBoxLayout *outerLayout = new QVBoxLayout(this);
     outerLayout->setContentsMargins(0,0,0,0);
@@ -202,30 +261,29 @@ QPushButton:pressed {
     outerLayout->addWidget(titleBar);
     outerLayout->addLayout(mainLayout);
     setLayout(outerLayout);
-    // 信号槽
-    connect(btnBook, &QPushButton::clicked, [this, stack]{ stack->setCurrentIndex(0); });
-    connect(btnBorrow, &QPushButton::clicked, [this, stack]{ stack->setCurrentIndex(1); });
-    connect(btnUser, &QPushButton::clicked, [this, stack, userTable]{
-        if (!isLoggedIn) {
-            showLoginDialog(userTable);
-            if (!isLoggedIn) return; // 未登录不切换
-        }
-        stack->setCurrentIndex(2);
-    });
+    
+    // 导航按钮信号槽 - 使用全局权限检查
+    connect(btnBook, &QPushButton::clicked, [this]{ switchToPage(BOOK_PAGE); });
+    connect(btnBorrow, &QPushButton::clicked, [this]{ checkPermissionAndNavigate(BORROW_PAGE, USER); });
+    connect(btnUser, &QPushButton::clicked, [this]{ checkPermissionAndNavigate(USER_PAGE, ADMIN); });
+    
     // 图书管理功能信号槽
     connect(btnAdd, &QPushButton::clicked, [this, bookTable]{ onAddBook(bookTable); });
     connect(btnEdit, &QPushButton::clicked, [this, bookTable]{ onEditBook(bookTable); });
     connect(btnDelete, &QPushButton::clicked, [this, bookTable]{ onDeleteBook(bookTable); });
     connect(btnImportBooks, &QPushButton::clicked, [this, bookTable]{ onImportBooks(bookTable); });
+    
     // 借阅管理功能信号槽
     connect(btnBorrowBook, &QPushButton::clicked, [this, borrowTable]{ onBorrowBook(borrowTable); });
     connect(btnReturnBook, &QPushButton::clicked, [this, borrowTable]{ onReturnBook(borrowTable); });
     connect(btnRenewBook, &QPushButton::clicked, [this, borrowTable]{ onRenewBook(borrowTable); });
+    
     // 用户管理功能信号槽
     connect(btnAddUser, &QPushButton::clicked, [this, userTable]{ onAddUser(userTable); });
     connect(btnEditUser, &QPushButton::clicked, [this, userTable]{ onEditUser(userTable); });
     connect(btnDeleteUser, &QPushButton::clicked, [this, userTable]{ onDeleteUser(userTable); });
-    // 信号槽
+    
+    // 窗口控制信号槽
     connect(btnMin, &QPushButton::clicked, this, &QWidget::showMinimized);
     connect(btnMax, &QPushButton::clicked, [this, btnMax]{
         if (isMaximized()) {
@@ -237,6 +295,7 @@ QPushButton:pressed {
         }
     });
     connect(btnClose, &QPushButton::clicked, this, &QWidget::close);
+    connect(btnLogout, &QPushButton::clicked, this, &Widget::logoutUser);
 
     // 优化按钮样式
     QString btnStyle = R"(
@@ -307,6 +366,411 @@ QPushButton:pressed {
     refreshBookTable(bookTable);
     refreshBorrowTable(borrowTable);
     refreshUserTable(userTable);
+    
+    // 更新登录状态显示
+    updateLoginStatus();
+}
+
+// 全局登录对话框
+bool Widget::showGlobalLoginDialog()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle("用户登录");
+    dialog.setFixedSize(300, 200);
+    dialog.setModal(true);
+    
+    QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
+    
+    // 标题
+    QLabel *titleLabel = new QLabel("请登录以继续操作", &dialog);
+    titleLabel->setAlignment(Qt::AlignCenter);
+    titleLabel->setStyleSheet("font-size: 16px; font-weight: bold; color: #333; margin: 10px;");
+    mainLayout->addWidget(titleLabel);
+    
+    // 表单
+    QFormLayout *formLayout = new QFormLayout();
+    QLineEdit *usernameEdit = new QLineEdit(&dialog);
+    QLineEdit *passwordEdit = new QLineEdit(&dialog);
+    passwordEdit->setEchoMode(QLineEdit::Password);
+    
+    formLayout->addRow("用户名:", usernameEdit);
+    formLayout->addRow("密码:", passwordEdit);
+    mainLayout->addLayout(formLayout);
+    
+    // 按钮布局
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *btnLogin = new QPushButton("登录", &dialog);
+    QPushButton *btnRegister = new QPushButton("注册", &dialog);
+    QPushButton *btnCancel = new QPushButton("取消", &dialog);
+    
+    btnLayout->addWidget(btnLogin);
+    btnLayout->addWidget(btnRegister);
+    btnLayout->addWidget(btnCancel);
+    mainLayout->addLayout(btnLayout);
+    
+    // 设置按钮样式
+    QString btnStyle = R"(
+        QPushButton {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        QPushButton:hover {
+            background: #45a049;
+        }
+        QPushButton:pressed {
+            background: #3d8b40;
+        }
+    )";
+    
+    QString cancelBtnStyle = R"(
+        QPushButton {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        QPushButton:hover {
+            background: #da190b;
+        }
+    )";
+    
+    btnLogin->setStyleSheet(btnStyle);
+    btnRegister->setStyleSheet(btnStyle);
+    btnCancel->setStyleSheet(cancelBtnStyle);
+    
+    // 连接信号槽
+    connect(btnLogin, &QPushButton::clicked, [&]{
+        QString username = usernameEdit->text().trimmed();
+        QString password = passwordEdit->text();
+        
+        if (username.isEmpty() || password.isEmpty()) {
+            QMessageBox::warning(&dialog, "输入错误", "用户名和密码不能为空！");
+            return;
+        }
+        
+        if (loginUser(username, password)) {
+            QMessageBox::information(&dialog, "登录成功", "欢迎，" + username + "！");
+            dialog.accept();
+        } else {
+            QMessageBox::warning(&dialog, "登录失败", "用户名或密码错误！");
+        }
+    });
+    
+    connect(btnRegister, &QPushButton::clicked, [&]{
+        dialog.reject();
+        showGlobalRegisterDialog();
+    });
+    
+    connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject);
+    
+    // 回车键登录
+    connect(usernameEdit, &QLineEdit::returnPressed, [&]{ btnLogin->click(); });
+    connect(passwordEdit, &QLineEdit::returnPressed, [&]{ btnLogin->click(); });
+    
+    int result = dialog.exec();
+    return (result == QDialog::Accepted && isLoggedIn);
+}
+
+// 全局注册对话框
+bool Widget::showGlobalRegisterDialog()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle("用户注册");
+    dialog.setFixedSize(350, 250);
+    dialog.setModal(true);
+    
+    QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
+    
+    // 标题
+    QLabel *titleLabel = new QLabel("创建新用户账户", &dialog);
+    titleLabel->setAlignment(Qt::AlignCenter);
+    titleLabel->setStyleSheet("font-size: 16px; font-weight: bold; color: #333; margin: 10px;");
+    mainLayout->addWidget(titleLabel);
+    
+    // 表单
+    QFormLayout *formLayout = new QFormLayout();
+    QLineEdit *usernameEdit = new QLineEdit(&dialog);
+    QLineEdit *passwordEdit = new QLineEdit(&dialog);
+    QLineEdit *confirmPasswordEdit = new QLineEdit(&dialog);
+    QComboBox *roleCombo = new QComboBox(&dialog);
+    
+    passwordEdit->setEchoMode(QLineEdit::Password);
+    confirmPasswordEdit->setEchoMode(QLineEdit::Password);
+    roleCombo->addItem("普通用户", USER);
+    roleCombo->addItem("管理员", ADMIN);
+    
+    formLayout->addRow("用户名:", usernameEdit);
+    formLayout->addRow("密码:", passwordEdit);
+    formLayout->addRow("确认密码:", confirmPasswordEdit);
+    formLayout->addRow("角色:", roleCombo);
+    mainLayout->addLayout(formLayout);
+    
+    // 按钮布局
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *btnRegister = new QPushButton("注册", &dialog);
+    QPushButton *btnCancel = new QPushButton("取消", &dialog);
+    
+    btnLayout->addWidget(btnRegister);
+    btnLayout->addWidget(btnCancel);
+    mainLayout->addLayout(btnLayout);
+    
+    // 设置按钮样式
+    QString btnStyle = R"(
+        QPushButton {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        QPushButton:hover {
+            background: #1976D2;
+        }
+    )";
+    
+    QString cancelBtnStyle = R"(
+        QPushButton {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        QPushButton:hover {
+            background: #da190b;
+        }
+    )";
+    
+    btnRegister->setStyleSheet(btnStyle);
+    btnCancel->setStyleSheet(cancelBtnStyle);
+    
+    // 连接信号槽
+    connect(btnRegister, &QPushButton::clicked, [&]{
+        QString username = usernameEdit->text().trimmed();
+        QString password = passwordEdit->text();
+        QString confirmPassword = confirmPasswordEdit->text();
+        Role role = static_cast<Role>(roleCombo->currentData().toInt());
+        
+        // 验证输入
+        if (username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+            QMessageBox::warning(&dialog, "输入错误", "所有字段都不能为空！");
+            return;
+        }
+        
+        if (password != confirmPassword) {
+            QMessageBox::warning(&dialog, "输入错误", "两次输入的密码不一致！");
+            return;
+        }
+        
+        if (password.length() < 6) {
+            QMessageBox::warning(&dialog, "输入错误", "密码长度至少6位！");
+            return;
+        }
+        
+        if (registerUser(username, password, role)) {
+            QMessageBox::information(&dialog, "注册成功", "用户注册成功！请登录。");
+            dialog.accept();
+        } else {
+            QMessageBox::warning(&dialog, "注册失败", "用户名已存在或注册失败！");
+        }
+    });
+    
+    connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject);
+    
+    // 回车键注册
+    connect(usernameEdit, &QLineEdit::returnPressed, [&]{ passwordEdit->setFocus(); });
+    connect(passwordEdit, &QLineEdit::returnPressed, [&]{ confirmPasswordEdit->setFocus(); });
+    connect(confirmPasswordEdit, &QLineEdit::returnPressed, [&]{ btnRegister->click(); });
+    
+    int result = dialog.exec();
+    return (result == QDialog::Accepted);
+}
+
+// 权限检查和页面导航
+bool Widget::checkPermissionAndNavigate(int targetPage, Role requiredRole)
+{
+    if (!isLoggedIn) {
+        // 未登录，显示登录对话框
+        if (showGlobalLoginDialog()) {
+            // 登录成功，检查权限
+            if (hasPermission(requiredRole)) {
+                switchToPage(targetPage);
+                return true;
+            } else {
+                showPermissionDeniedDialog();
+                return false;
+            }
+        } else {
+            // 用户取消登录，切换到图书管理页面
+            switchToPage(BOOK_PAGE);
+            return false;
+        }
+    } else {
+        // 已登录，检查权限
+        if (hasPermission(requiredRole)) {
+            switchToPage(targetPage);
+            return true;
+        } else {
+            showPermissionDeniedDialog();
+            return false;
+        }
+    }
+}
+
+// 页面切换
+void Widget::switchToPage(int pageIndex)
+{
+    if (mainStack && pageIndex >= 0 && pageIndex < mainStack->count()) {
+        mainStack->setCurrentIndex(pageIndex);
+        
+        // 更新导航按钮状态
+        btnBook->setStyleSheet("QPushButton{color:white;background:transparent;border:none;font-size:16px;} QPushButton:hover{background:#444;}");
+        btnBorrow->setStyleSheet("QPushButton{color:white;background:transparent;border:none;font-size:16px;} QPushButton:hover{background:#444;}");
+        btnUser->setStyleSheet("QPushButton{color:white;background:transparent;border:none;font-size:16px;} QPushButton:hover{background:#444;}");
+        
+        switch (pageIndex) {
+            case BOOK_PAGE:
+                btnBook->setStyleSheet("QPushButton{color:white;background:#444;border:none;font-size:16px;} QPushButton:hover{background:#555;}");
+                break;
+            case BORROW_PAGE:
+                btnBorrow->setStyleSheet("QPushButton{color:white;background:#444;border:none;font-size:16px;} QPushButton:hover{background:#555;}");
+                break;
+            case USER_PAGE:
+                btnUser->setStyleSheet("QPushButton{color:white;background:#444;border:none;font-size:16px;} QPushButton:hover{background:#555;}");
+                break;
+        }
+    }
+}
+
+// 权限检查
+bool Widget::hasPermission(Role requiredRole)
+{
+    if (!isLoggedIn) return false;
+    return static_cast<int>(currentUserRole) >= static_cast<int>(requiredRole);
+}
+
+// 显示权限不足对话框
+void Widget::showPermissionDeniedDialog()
+{
+    QMessageBox::warning(this, "权限不足", 
+        "您没有访问此功能的权限。\n"
+        "借阅管理需要普通用户权限，\n"
+        "用户管理需要管理员权限。");
+}
+
+// 更新登录状态显示
+void Widget::updateLoginStatus()
+{
+    // 查找标题栏中的登录状态标签和登出按钮并更新
+    QWidget *titleBar = findChild<QWidget*>();
+    if (titleBar) {
+        QList<QLabel*> labels = titleBar->findChildren<QLabel*>();
+        QList<QPushButton*> buttons = titleBar->findChildren<QPushButton*>();
+        
+        // 更新登录状态标签
+        for (QLabel* label : labels) {
+            if (label->text() == "未登录" || label->text().contains("用户：")) {
+                if (isLoggedIn) {
+                    QString roleText = (currentUserRole == ADMIN) ? "管理员" : "普通用户";
+                    label->setText(QString("用户：%1 (%2)").arg(currentUser).arg(roleText));
+                    label->setStyleSheet("color: #4CAF50; font-size: 12px; margin-right: 10px; font-weight: bold;");
+                } else {
+                    label->setText("未登录");
+                    label->setStyleSheet("color: #666; font-size: 12px; margin-right: 10px;");
+                }
+                break;
+            }
+        }
+        
+        // 更新登出按钮显示状态
+        for (QPushButton* button : buttons) {
+            if (button->text() == "登出") {
+                button->setVisible(isLoggedIn);
+                break;
+            }
+        }
+    }
+}
+
+// 保存用户数据
+void Widget::saveUserData()
+{
+    try {
+        QString userDataPath = QCoreApplication::applicationDirPath() + "/users.json";
+        userManager.saveToFile(userDataPath.toStdString());
+    } catch (const std::exception &e) {
+        qDebug() << "保存用户数据失败:" << e.what();
+    }
+}
+
+// 加载用户数据
+void Widget::loadUserData()
+{
+    try {
+        QString userDataPath = QCoreApplication::applicationDirPath() + "/users.json";
+        userManager.loadFromFile(userDataPath.toStdString());
+    } catch (const std::exception &e) {
+        qDebug() << "加载用户数据失败:" << e.what();
+    }
+}
+
+// 用户登录
+bool Widget::loginUser(const QString &username, const QString &password)
+{
+    if (username.isEmpty() || password.isEmpty()) return false;
+    
+    const User* user = userManager.findUser(username.toStdString());
+    if (user && user->password == password.toStdString()) {
+        isLoggedIn = true;
+        currentUser = username;
+        currentUserRole = user->role;
+        updateLoginStatus();
+        return true;
+    }
+    return false;
+}
+
+// 用户注册
+bool Widget::registerUser(const QString &username, const QString &password, Role role)
+{
+    if (username.isEmpty() || password.isEmpty()) return false;
+    
+    // 检查用户名是否已存在
+    if (userManager.findUser(username.toStdString())) {
+        return false;
+    }
+    
+    try {
+        User user(username.toStdString(), password.toStdString(), role);
+        userManager.addUser(user);
+        saveUserData();
+        return true;
+    } catch (const std::exception &e) {
+        qDebug() << "注册用户失败:" << e.what();
+        return false;
+    }
+}
+
+// 用户登出
+void Widget::logoutUser()
+{
+    isLoggedIn = false;
+    currentUser.clear();
+    currentUserRole = USER;
+    updateLoginStatus();
+    
+    // 如果当前在需要权限的页面，切换到图书管理页面
+    if (mainStack && mainStack->currentIndex() != BOOK_PAGE) {
+        switchToPage(BOOK_PAGE);
+    }
 }
 
 void Widget::refreshBookTable(QTableWidget *table)
@@ -415,9 +879,9 @@ void Widget::onEditBook(QTableWidget *table)
             return;
         }
         try {
-            Book updatedBook(isbn.toStdString(), title.toStdString(), author.toStdString(), publisher.toStdString(), year);
-            if (!bookManager.updateBook(oldIsbn.toStdString(), updatedBook)) {
-                QMessageBox::warning(this, "修改失败", "未找到原图书或ISBN已更改为已存在的图书。");
+            Book newBook(isbn.toStdString(), title.toStdString(), author.toStdString(), publisher.toStdString(), year);
+            if (!bookManager.updateBook(oldIsbn.toStdString(), newBook)) {
+                QMessageBox::warning(this, "修改失败", "未找到原图书或更新失败。");
                 return;
             }
             refreshBookTable(table);
@@ -435,17 +899,13 @@ void Widget::onDeleteBook(QTableWidget *table)
         return;
     }
     QString isbn = table->item(row, 0)->text();
-    QString title = table->item(row, 1)->text();
-    int ret = QMessageBox::question(this, "确认删除", QString("确定要删除图书：%1 (ISBN: %2) 吗？").arg(title, isbn), QMessageBox::Yes | QMessageBox::No);
+    int ret = QMessageBox::question(this, "确认删除", QString("确定要删除图书：%1 吗？").arg(isbn), QMessageBox::Yes | QMessageBox::No);
     if (ret == QMessageBox::Yes) {
-        try {
-            if (!bookManager.removeBook(isbn.toStdString())) {
-                QMessageBox::warning(this, "删除失败", "未找到该图书或删除失败。");
-            }
-            refreshBookTable(table);
-        } catch (const std::exception &e) {
-            QMessageBox::warning(this, "删除失败", e.what());
+        if (!bookManager.removeBook(isbn.toStdString())) {
+            QMessageBox::warning(this, "删除失败", "未找到该图书或删除失败。");
+            return;
         }
+        refreshBookTable(table);
     }
 }
 
@@ -462,117 +922,117 @@ void Widget::on_navImport_clicked(){}
 void Widget::refreshBorrowTable(QTableWidget *table)
 {
     table->setRowCount(0);
-    auto records = borrowManager->getOverdueRecords(); // 可改为getUserBorrowRecords等
+    const auto &records = borrowManager->getAllBorrowRecords();
     for (size_t i = 0; i < records.getSize(); ++i) {
         table->insertRow(i);
-        const auto &rec = records[i];
-        table->setItem(i, 0, new QTableWidgetItem(QString::fromStdString(rec.getRecordId())));
-        table->setItem(i, 1, new QTableWidgetItem(QString::fromStdString(rec.getBookIsbn())));
-        table->setItem(i, 2, new QTableWidgetItem(QString::fromStdString(rec.getUsername())));
-        table->setItem(i, 3, new QTableWidgetItem(QDateTime::fromSecsSinceEpoch(rec.getBorrowDate()).toString("yyyy-MM-dd")));
-        table->setItem(i, 4, new QTableWidgetItem(QDateTime::fromSecsSinceEpoch(rec.getDueDate()).toString("yyyy-MM-dd")));
-        table->setItem(i, 5, new QTableWidgetItem(rec.getIsReturned() ? QDateTime::fromSecsSinceEpoch(rec.getReturnDate()).toString("yyyy-MM-dd") : ""));
-        table->setItem(i, 6, new QTableWidgetItem(rec.getIsReturned() ? "已归还" : (rec.getDueDate() < QDateTime::currentSecsSinceEpoch() ? "逾期" : "借阅中")));
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(records[i].getId())));
+        table->setItem(i, 1, new QTableWidgetItem(QString::fromStdString(records[i].getIsbn())));
+        table->setItem(i, 2, new QTableWidgetItem(QString::fromStdString(records[i].getUsername())));
+        table->setItem(i, 3, new QTableWidgetItem(QString::fromStdString(records[i].getBorrowDateStr())));
+        table->setItem(i, 4, new QTableWidgetItem(QString::fromStdString(records[i].getDueDateStr())));
+        table->setItem(i, 5, new QTableWidgetItem(QString::fromStdString(records[i].getReturnDateStr())));
+        table->setItem(i, 6, new QTableWidgetItem(QString::fromStdString(records[i].getStatus())));
     }
 }
 
 void Widget::onBorrowBook(QTableWidget *table)
 {
+    if (!isLoggedIn) {
+        QMessageBox::warning(this, "未登录", "请先登录后再进行借书操作。");
+        return;
+    }
+    
+    // 弹窗选择图书
     QDialog dialog(this);
     dialog.setWindowTitle("借书");
     QFormLayout form(&dialog);
-    QLineEdit *isbnEdit = new QLineEdit(&dialog);
-    QLineEdit *userEdit = new QLineEdit(&dialog);
-    form.addRow("ISBN:", isbnEdit);
-    form.addRow("用户名:", userEdit);
+    QComboBox *bookCombo = new QComboBox(&dialog);
+    const auto &books = bookManager.getAllBooks();
+    for (size_t i = 0; i < books.getSize(); ++i) {
+        QString bookInfo = QString("%1 - %2").arg(QString::fromStdString(books[i].getIsbn())).arg(QString::fromStdString(books[i].getTitle()));
+        bookCombo->addItem(bookInfo, QString::fromStdString(books[i].getIsbn()));
+    }
+    form.addRow("选择图书:", bookCombo);
     QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     form.addRow(&buttonBox);
     QObject::connect(&buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     QObject::connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     if (dialog.exec() == QDialog::Accepted) {
-        QString isbn = isbnEdit->text().trimmed();
-        QString username = userEdit->text().trimmed();
-        if (isbn.isEmpty() || username.isEmpty()) {
-            QMessageBox::warning(this, "输入错误", "ISBN和用户名不能为空！");
-            return;
+        QString isbn = bookCombo->currentData().toString();
+        try {
+            borrowManager->borrowBook(isbn.toStdString(), currentUser.toStdString());
+            refreshBorrowTable(table);
+            QMessageBox::information(this, "借书成功", "图书借阅成功！");
+        } catch (const std::exception &e) {
+            QMessageBox::warning(this, "借书失败", e.what());
         }
-        bool ok = borrowManager->borrowBook(isbn.toStdString(), username.toStdString());
-        if (ok) {
-            QMessageBox::information(this, "借书成功", "借书操作成功！");
-        } else {
-            QMessageBox::warning(this, "借书失败", "借书失败，可能是用户/图书不存在或已借阅未归还。");
-        }
-        refreshBorrowTable(table);
     }
 }
 
 void Widget::onReturnBook(QTableWidget *table)
 {
+    if (!isLoggedIn) {
+        QMessageBox::warning(this, "未登录", "请先登录后再进行还书操作。");
+        return;
+    }
+    
     int row = table->currentRow();
     if (row < 0) {
-        QMessageBox::warning(this, "未选择", "请先选择要归还的借阅记录行。");
+        QMessageBox::warning(this, "未选择", "请先选择要归还的借阅记录。");
         return;
     }
-    QString isbn = table->item(row, 1)->text();
-    QString username = table->item(row, 2)->text();
-    QString status = table->item(row, 6)->text();
-    if (status == "已归还") {
-        QMessageBox::information(this, "已归还", "该借阅记录已归还，无需重复操作。");
-        return;
-    }
-    int ret = QMessageBox::question(this, "确认还书", QString("确定要归还图书 (ISBN: %1) 用户: %2 吗？").arg(isbn, username), QMessageBox::Yes | QMessageBox::No);
-    if (ret == QMessageBox::Yes) {
-        bool ok = borrowManager->returnBook(isbn.toStdString(), username.toStdString());
-        if (ok) {
-            QMessageBox::information(this, "还书成功", "还书操作成功！");
-        } else {
-            QMessageBox::warning(this, "还书失败", "还书失败，未找到对应借阅记录或已归还。");
-        }
+    
+    int recordId = table->item(row, 0)->text().toInt();
+    try {
+        borrowManager->returnBook(recordId);
         refreshBorrowTable(table);
+        QMessageBox::information(this, "还书成功", "图书归还成功！");
+    } catch (const std::exception &e) {
+        QMessageBox::warning(this, "还书失败", e.what());
     }
 }
 
 void Widget::onRenewBook(QTableWidget *table)
 {
+    if (!isLoggedIn) {
+        QMessageBox::warning(this, "未登录", "请先登录后再进行续借操作。");
+        return;
+    }
+    
     int row = table->currentRow();
     if (row < 0) {
-        QMessageBox::warning(this, "未选择", "请先选择要续借的借阅记录行。");
+        QMessageBox::warning(this, "未选择", "请先选择要续借的借阅记录。");
         return;
     }
-    QString isbn = table->item(row, 1)->text();
-    QString username = table->item(row, 2)->text();
-    QString status = table->item(row, 6)->text();
-    if (status == "已归还") {
-        QMessageBox::information(this, "已归还", "该借阅记录已归还，无法续借。");
-        return;
-    }
-    int ret = QMessageBox::question(this, "确认续借", QString("确定要续借图书 (ISBN: %1) 用户: %2 吗？").arg(isbn, username), QMessageBox::Yes | QMessageBox::No);
-    if (ret == QMessageBox::Yes) {
-        bool ok = borrowManager->renewBook(isbn.toStdString(), username.toStdString());
-        if (ok) {
-            QMessageBox::information(this, "续借成功", "续借操作成功！");
-        } else {
-            QMessageBox::warning(this, "续借失败", "续借失败，未找到对应借阅记录或已归还。");
-        }
+    
+    int recordId = table->item(row, 0)->text().toInt();
+    try {
+        borrowManager->renewBook(recordId);
         refreshBorrowTable(table);
+        QMessageBox::information(this, "续借成功", "图书续借成功！");
+    } catch (const std::exception &e) {
+        QMessageBox::warning(this, "续借失败", e.what());
     }
 }
 
 void Widget::refreshUserTable(QTableWidget *table)
 {
     table->setRowCount(0);
-    const auto &users = userManager;
-    // 由于UserManager没有直接暴露用户列表，假设有getAllUsers()，否则可遍历fuzzyFindUsers("")
-    MyVector<User> allUsers = users.fuzzyFindUsers("");
-    for (size_t i = 0; i < allUsers.getSize(); ++i) {
+    const auto &users = userManager.getAllUsers();
+    for (size_t i = 0; i < users.getSize(); ++i) {
         table->insertRow(i);
-        table->setItem(i, 0, new QTableWidgetItem(QString::fromStdString(allUsers[i].username)));
-        table->setItem(i, 1, new QTableWidgetItem(allUsers[i].role == ADMIN ? "管理员" : "普通用户"));
+        table->setItem(i, 0, new QTableWidgetItem(QString::fromStdString(users[i].username)));
+        table->setItem(i, 1, new QTableWidgetItem(users[i].role == ADMIN ? "管理员" : "普通用户"));
     }
 }
 
 void Widget::onAddUser(QTableWidget *table)
 {
+    if (!hasPermission(ADMIN)) {
+        QMessageBox::warning(this, "权限不足", "只有管理员才能添加用户。");
+        return;
+    }
+    
     QDialog dialog(this);
     dialog.setWindowTitle("添加用户");
     QFormLayout form(&dialog);
@@ -604,7 +1064,7 @@ void Widget::onAddUser(QTableWidget *table)
         try {
             User user(username.toStdString(), password.toStdString(), role);
             userManager.addUser(user);
-            userManager.saveToFile(QCoreApplication::applicationDirPath().toStdString() + "/users.json");
+            saveUserData();
             refreshUserTable(table);
         } catch (const std::exception &e) {
             QMessageBox::warning(this, "添加失败", e.what());
@@ -614,6 +1074,11 @@ void Widget::onAddUser(QTableWidget *table)
 
 void Widget::onEditUser(QTableWidget *table)
 {
+    if (!hasPermission(ADMIN)) {
+        QMessageBox::warning(this, "权限不足", "只有管理员才能修改用户。");
+        return;
+    }
+    
     int row = table->currentRow();
     if (row < 0) {
         QMessageBox::warning(this, "未选择", "请先选择要修改的用户行。");
@@ -661,7 +1126,7 @@ void Widget::onEditUser(QTableWidget *table)
                 QMessageBox::warning(this, "修改失败", "未找到原用户或更新失败。");
                 return;
             }
-            userManager.saveToFile(QCoreApplication::applicationDirPath().toStdString() + "/users.json");
+            saveUserData();
             refreshUserTable(table);
         } catch (const std::exception &e) {
             QMessageBox::warning(this, "修改失败", e.what());
@@ -671,19 +1136,31 @@ void Widget::onEditUser(QTableWidget *table)
 
 void Widget::onDeleteUser(QTableWidget *table)
 {
+    if (!hasPermission(ADMIN)) {
+        QMessageBox::warning(this, "权限不足", "只有管理员才能删除用户。");
+        return;
+    }
+    
     int row = table->currentRow();
     if (row < 0) {
         QMessageBox::warning(this, "未选择", "请先选择要删除的用户行。");
         return;
     }
     QString username = table->item(row, 0)->text();
+    
+    // 不能删除当前登录用户
+    if (username == currentUser) {
+        QMessageBox::warning(this, "删除失败", "不能删除当前登录用户！");
+        return;
+    }
+    
     int ret = QMessageBox::question(this, "确认删除", QString("确定要删除用户：%1 吗？").arg(username), QMessageBox::Yes | QMessageBox::No);
     if (ret == QMessageBox::Yes) {
         if (!userManager.removeUser(username.toStdString())) {
             QMessageBox::warning(this, "删除失败", "未找到该用户或删除失败。");
             return;
         }
-        userManager.saveToFile(QCoreApplication::applicationDirPath().toStdString() + "/users.json");
+        saveUserData();
         refreshUserTable(table);
     }
 }
@@ -762,102 +1239,5 @@ void Widget::onImportBooks(QTableWidget *table)
 
     watcher->setFuture(QtConcurrent::run(importTask));
     progress->exec();
-}
-
-void Widget::showLoginDialog(QTableWidget *userTable)
-{
-    while (!isLoggedIn) {
-        QDialog dialog(this);
-        dialog.setWindowTitle("用户登录");
-        QFormLayout form(&dialog);
-        QLineEdit *usernameEdit = new QLineEdit(&dialog);
-        QLineEdit *passwordEdit = new QLineEdit(&dialog);
-        passwordEdit->setEchoMode(QLineEdit::Password);
-        form.addRow("用户名:", usernameEdit);
-        form.addRow("密码:", passwordEdit);
-        QPushButton *btnLogin = new QPushButton("登录", &dialog);
-        QPushButton *btnRegister = new QPushButton("注册", &dialog);
-        QHBoxLayout *btnLayout = new QHBoxLayout();
-        btnLayout->addWidget(btnLogin);
-        btnLayout->addWidget(btnRegister);
-        form.addRow(btnLayout);
-        QObject::connect(btnLogin, &QPushButton::clicked, [&]{
-            QString username = usernameEdit->text().trimmed();
-            QString password = passwordEdit->text();
-            if (loginUser(username, password)) {
-                QMessageBox::information(this, "登录成功", "欢迎，" + username + "！");
-                dialog.accept();
-            } else {
-                QMessageBox::warning(this, "登录失败", "用户名或密码错误。");
-            }
-        });
-        QObject::connect(btnRegister, &QPushButton::clicked, [&]{
-            dialog.reject(); // 关闭登录框
-        });
-        int ret = dialog.exec();
-        if (ret == QDialog::Accepted && isLoggedIn) {
-            break;
-        } else if (ret == QDialog::Rejected && !isLoggedIn) {
-            showRegisterDialog(userTable); // 注册后自动弹回登录
-        }
-    }
-}
-
-void Widget::showRegisterDialog(QTableWidget *userTable)
-{
-    QDialog dialog(this);
-    dialog.setWindowTitle("用户注册");
-    QFormLayout form(&dialog);
-    QLineEdit *usernameEdit = new QLineEdit(&dialog);
-    QLineEdit *passwordEdit = new QLineEdit(&dialog);
-    passwordEdit->setEchoMode(QLineEdit::Password);
-    QComboBox *roleCombo = new QComboBox(&dialog);
-    roleCombo->addItem("普通用户", USER);
-    roleCombo->addItem("管理员", ADMIN);
-    form.addRow("用户名:", usernameEdit);
-    form.addRow("密码:", passwordEdit);
-    form.addRow("角色:", roleCombo);
-    QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
-    form.addRow(&buttonBox);
-    QObject::connect(&buttonBox, &QDialogButtonBox::accepted, [&]{
-        QString username = usernameEdit->text().trimmed();
-        QString password = passwordEdit->text();
-        Role role = static_cast<Role>(roleCombo->currentData().toInt());
-        if (registerUser(username, password, role)) {
-            QMessageBox::information(this, "注册成功", "注册成功，请登录。");
-            dialog.accept();
-        } else {
-            QMessageBox::warning(this, "注册失败", "用户名已存在或输入无效。");
-        }
-    });
-    QObject::connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-    dialog.exec();
-}
-
-bool Widget::loginUser(const QString &username, const QString &password)
-{
-    if (username.isEmpty() || password.isEmpty()) return false;
-    const User* user = userManager.findUser(username.toStdString());
-    if (user && user->password == password.toStdString()) {
-        isLoggedIn = true;
-        currentUser = username;
-        return true;
-    }
-    return false;
-}
-
-bool Widget::registerUser(const QString &username, const QString &password, Role role)
-{
-    if (username.isEmpty() || password.isEmpty()) return false;
-    if (userManager.findUser(username.toStdString())) return false;
-    try {
-        User user(username.toStdString(), password.toStdString(), role);
-        userManager.addUser(user);
-        userManager.saveToFile(QCoreApplication::applicationDirPath().toStdString() + "/users.json");
-        refreshUserTable(nullptr);
-        return true;
-    } catch (...) {
-        return false;
-    }
 }
 

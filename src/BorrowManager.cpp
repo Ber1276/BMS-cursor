@@ -7,14 +7,18 @@ BorrowManager::BorrowManager(BookManager* bookManager, UserManager* userManager)
 
 bool BorrowManager::borrowBook(const std::string& isbn, const std::string& username) {
     const User* user = userManager->findUser(username);
-    if (!user) return false;
+    if (!user) {
+        throw std::runtime_error("用户不存在");
+    }
     Book* book = bookManager->findBookByIsbn(isbn);
-    if (!book) return false;
+    if (!book) {
+        throw std::runtime_error("图书不存在");
+    }
     for (size_t i = 0; i < records.getSize(); i++) {
         if (records[i].getBookIsbn() == isbn && 
             records[i].getUsername() == username && 
             !records[i].getIsReturned()) {
-            return false;
+            throw std::runtime_error("该用户已借阅此书且未归还");
         }
     }
     time_t now = std::time(nullptr);
@@ -48,6 +52,35 @@ bool BorrowManager::renewBook(const std::string& isbn, const std::string& userna
         }
     }
     return false;
+}
+
+// 通过ID操作的方法
+void BorrowManager::returnBook(int recordId) {
+    for (size_t i = 0; i < records.getSize(); i++) {
+        if (records[i].getId() == recordId) {
+            if (records[i].getIsReturned()) {
+                throw std::runtime_error("该记录已归还");
+            }
+            records[i].setReturnDate(std::time(nullptr));
+            records[i].setIsReturned(true);
+            return;
+        }
+    }
+    throw std::runtime_error("未找到指定的借阅记录");
+}
+
+void BorrowManager::renewBook(int recordId) {
+    for (size_t i = 0; i < records.getSize(); i++) {
+        if (records[i].getId() == recordId) {
+            if (records[i].getIsReturned()) {
+                throw std::runtime_error("已归还的图书无法续借");
+            }
+            time_t newDueDate = std::time(nullptr) + (DEFAULT_BORROW_DAYS * 24 * 60 * 60);
+            records[i].setDueDate(newDueDate);
+            return;
+        }
+    }
+    throw std::runtime_error("未找到指定的借阅记录");
 }
 
 MyVector<BorrowRecord> BorrowManager::getUserBorrowRecords(const std::string& username) {

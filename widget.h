@@ -2,6 +2,36 @@
 #define WIDGET_H
 
 #include <QWidget>
+#include <QStackedWidget>
+#include <QPushButton>
+#include <QLabel>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <QFormLayout>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QMessageBox>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QInputDialog>
+#include <QFrame>
+#include <QDateTime>
+#include <QFileDialog>
+#include <QThread>
+#include <QProgressDialog>
+#include <QFile>
+#include <QTextStream>
+#include <QRegularExpression>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QtConcurrent>
+#include <QFutureWatcher>
+#include <QCoreApplication>
+#include <QApplication>
+#include <QDir>
+#include <QDebug>
 #include "include/BookManager.h"
 #include "include/User.h"
 #include "include/BorrowManager.h"
@@ -47,12 +77,38 @@ private:
     UserManager userManager;
     BorrowManager *borrowManager;
     PermissionManager *permissionManager;
-    void setupCustomUi();
-    void showLoginDialog(QTableWidget *userTable);
-    void showRegisterDialog(QTableWidget *userTable);
-    bool loginUser(const QString &username, const QString &password);
-    bool registerUser(const QString &username, const QString &password, Role role);
+    
+    // 全局UI组件
+    QStackedWidget *mainStack;
+    QPushButton *btnBook;
+    QPushButton *btnBorrow;
+    QPushButton *btnUser;
+    
+    // 登录状态管理
     bool isLoggedIn = false;
     QString currentUser;
+    Role currentUserRole = USER;
+    
+    // 用户管理相关方法
+    void setupCustomUi();
+    bool showGlobalLoginDialog();
+    bool showGlobalRegisterDialog();
+    bool loginUser(const QString &username, const QString &password);
+    bool registerUser(const QString &username, const QString &password, Role role);
+    void logoutUser();
+    bool checkPermissionAndNavigate(int targetPage, Role requiredRole = USER);
+    void switchToPage(int pageIndex);
+    void updateLoginStatus();
+    void saveUserData();
+    void loadUserData();
+    
+    // 权限检查方法
+    bool hasPermission(Role requiredRole);
+    void showPermissionDeniedDialog();
+    
+    // 页面索引常量
+    static const int BOOK_PAGE = 0;
+    static const int BORROW_PAGE = 1;
+    static const int USER_PAGE = 2;
 };
 #endif // WIDGET_H
