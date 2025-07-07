@@ -43,6 +43,7 @@ Widget::Widget(QWidget *parent)
     , btnBook(nullptr)
     , btnBorrow(nullptr)
     , btnUser(nullptr)
+    , btnBorrowBookPage(nullptr)
 {
     ui->setupUi(this);
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
@@ -173,8 +174,9 @@ QPushButton:pressed {
     btnBook = new QPushButton("图书管理", navBar);
     btnBorrow = new QPushButton("借阅管理", navBar);
     btnUser = new QPushButton("用户管理", navBar);
+    btnBorrowBookPage = new QPushButton("借阅图书", navBar);
     
-    for (auto btn : {btnBook, btnBorrow, btnUser}) {
+    for (auto btn : {btnBook, btnBorrow, btnUser, btnBorrowBookPage}) {
         btn->setFixedHeight(40);
         btn->setStyleSheet("QPushButton{color:white;background:transparent;border:none;font-size:16px;} QPushButton:hover{background:#444;}");
         navLayout->addWidget(btn);
@@ -280,6 +282,24 @@ QPushButton:pressed {
     userLayout->addLayout(userBtnLayout);
     userLayout->addWidget(userTable);
     mainStack->addWidget(userPage);
+
+
+    // 借阅图书页
+    QWidget *borrowBookPage = new QWidget(this);
+    QVBoxLayout *borrowBookLayout = new QVBoxLayout(borrowBookPage);
+    QTableWidget *borrowBookTable = new QTableWidget(borrowBookPage);
+    borrowBookTable->setColumnCount(5);
+    QStringList borrowBookHeaders;
+    borrowBookHeaders << "ISBN" << "书名" << "作者" << "出版社" << "出版年份";
+    borrowBookTable->setHorizontalHeaderLabels(borrowBookHeaders);
+    borrowBookTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    borrowBookTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    borrowBookTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    borrowBookTable->setSelectionMode(QAbstractItemView::SingleSelection);
+
+    borrowBookLayout->addWidget(borrowBookTable);
+    mainStack->addWidget(borrowBookPage);
+    
     
     // 主内容区背景色
     mainStack->setStyleSheet("background:#f5f6fa; border-top-right-radius:16px; border-bottom-right-radius:16px;");
@@ -288,6 +308,7 @@ QPushButton:pressed {
     bookPage->setStyleSheet("background:#f5f6fa;");
     borrowPage->setStyleSheet("background:#f5f6fa;");
     userPage->setStyleSheet("background:#f5f6fa;");
+    borrowBookPage->setStyleSheet("background:#f5f6fa;");
     
     // 总体布局
     QHBoxLayout *mainLayout = new QHBoxLayout();
@@ -308,6 +329,7 @@ QPushButton:pressed {
     connect(btnBook, &QPushButton::clicked, this ,[this](){ switchToPage(BOOK_PAGE); });
     connect(btnBorrow, &QPushButton::clicked, this,[this]{ checkPermissionAndNavigate(BORROW_PAGE, USER); });
     connect(btnUser, &QPushButton::clicked, this,[this]{ checkPermissionAndNavigate(USER_PAGE, ADMIN); });
+    connect(btnBorrowBookPage, &QPushButton::clicked, this,[this]{ switchToBorrowBookPage(); });
     
     // 图书管理功能信号槽 - 增删改操作需要管理员权限
     connect(btnAdd, &QPushButton::clicked, this,[this, bookTable]{
@@ -443,6 +465,7 @@ QPushButton:pressed {
     bookTable->setStyleSheet(tableStyle);
     borrowTable->setStyleSheet(tableStyle);
     userTable->setStyleSheet(tableStyle);
+    borrowBookTable->setStyleSheet(tableStyle);
 
     QString navBtnStyle = R"(
     QPushButton {
@@ -459,6 +482,7 @@ QPushButton:pressed {
     btnBook->setStyleSheet(navBtnStyle);
     btnBorrow->setStyleSheet(navBtnStyle);
     btnUser->setStyleSheet(navBtnStyle);
+    btnBorrowBookPage->setStyleSheet(navBtnStyle);
 
     // 初始刷新
     refreshBookTable(bookTable);
@@ -733,7 +757,8 @@ void Widget::switchToPage(int pageIndex)
         btnBook->setStyleSheet("QPushButton{color:white;background:transparent;border:none;font-size:16px;} QPushButton:hover{background:#444;}");
         btnBorrow->setStyleSheet("QPushButton{color:white;background:transparent;border:none;font-size:16px;} QPushButton:hover{background:#444;}");
         btnUser->setStyleSheet("QPushButton{color:white;background:transparent;border:none;font-size:16px;} QPushButton:hover{background:#444;}");
-        
+        btnBorrowBookPage->setStyleSheet("QPushButton{color:white;background:transparent;border:none;font-size:16px;} QPushButton:hover{background:#444;}");
+
         switch (pageIndex) {
             case BOOK_PAGE:
                 btnBook->setStyleSheet("QPushButton{color:white;background:#444;border:none;font-size:16px;} QPushButton:hover{background:#555;}");
@@ -745,8 +770,17 @@ void Widget::switchToPage(int pageIndex)
             case USER_PAGE:
                 btnUser->setStyleSheet("QPushButton{color:white;background:#444;border:none;font-size:16px;} QPushButton:hover{background:#555;}");
                 break;
+            case BORROW_BOOK_PAGE:
+                btnBorrowBookPage->setStyleSheet("QPushButton{color:white;background:#444;border:none;font-size:16px;} QPushButton:hover{background:#555;}");
+                break;
         }
     }
+}
+
+//切换到借阅图书页
+void Widget::switchToBorrowBookPage()
+{
+    mainStack->setCurrentIndex(BORROW_BOOK_PAGE);
 }
 
 // 权限检查
