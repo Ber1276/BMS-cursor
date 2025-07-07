@@ -242,6 +242,14 @@ QPushButton:pressed {
     QPushButton *btnEditUser = new QPushButton("修改用户", userPage);
     QPushButton *btnDeleteUser = new QPushButton("删除用户", userPage);
     QPushButton *btnRefreshUser = new QPushButton("刷新用户", userPage);
+    QHBoxLayout *userSearchLayout = new QHBoxLayout();
+    QLineEdit *userSearchEdit = new QLineEdit(userPage);
+    userSearchEdit->setPlaceholderText("输入用户名关键字搜索");
+    QPushButton *btnSearchUser = new QPushButton("搜索", userPage);
+    userSearchLayout->addWidget(userSearchEdit);
+    userSearchLayout->addWidget(btnSearchUser);
+    userSearchLayout->addStretch();
+    userLayout->insertLayout(0, userSearchLayout); // 插入到最上方
     userBtnLayout->addWidget(btnAddUser);
     userBtnLayout->addWidget(btnEditUser);
     userBtnLayout->addWidget(btnDeleteUser);
@@ -337,6 +345,12 @@ QPushButton:pressed {
     connect(btnEditUser, &QPushButton::clicked, this,[this, userTable]{ onEditUser(userTable); });
     connect(btnDeleteUser, &QPushButton::clicked, this,[this, userTable]{ onDeleteUser(userTable); });
     connect(btnRefreshUser, &QPushButton::clicked, this,[this, userTable]{ refreshUserTable(userTable); });
+    connect(btnSearchUser, &QPushButton::clicked, this, [=]{
+        refreshUserTable(userTable, userSearchEdit->text().trimmed());
+    });
+    connect(userSearchEdit, &QLineEdit::returnPressed, this, [=]{
+        refreshUserTable(userTable, userSearchEdit->text().trimmed());
+    });
     
     // 窗口控制信号槽
     connect(btnMin, &QPushButton::clicked, this, &QWidget::showMinimized);
@@ -376,6 +390,7 @@ QPushButton:pressed {
     btnEditUser->setStyleSheet(btnStyle);
     btnDeleteUser->setStyleSheet(btnStyle);
     btnRefreshUser->setStyleSheet(btnStyle);
+    btnSearchUser->setStyleSheet(btnStyle);
 
     QString tableStyle = R"(
     QTableWidget {
@@ -1130,6 +1145,17 @@ void Widget::refreshUserTable(QTableWidget *table)
         table->insertRow(i);
         table->setItem(i, 0, new QTableWidgetItem(QString::fromStdString(users[i].username)));
         table->setItem(i, 1, new QTableWidgetItem(users[i].role == ADMIN ? "管理员" : "普通用户"));
+    }
+}
+
+void Widget::refreshUserTable(QTableWidget *table, const QString &keyword)
+{
+    table->setRowCount(0);
+    MyVector<User> searchUserResult = keyword.isEmpty()? userManager.getAllUsers(): userManager.fuzzyFindUsers(keyword.toStdString());
+    for (size_t i = 0; i < searchUserResult.getSize(); ++i) {
+        table->insertRow(i);
+        table->setItem(i, 0, new QTableWidgetItem(QString::fromStdString(searchUserResult[i].username)));
+        table->setItem(i, 1, new QTableWidgetItem(searchUserResult[i].role == ADMIN ? "管理员" : "普通用户"));
     }
 }
 

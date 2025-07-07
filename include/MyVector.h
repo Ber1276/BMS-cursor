@@ -112,6 +112,45 @@ public:
         }
         return hash;
     }
+
+    // 赋值运算符重载
+    MyVector& operator=(const MyVector& other) {
+        if (this == &other) return *this;
+        delete[] data;
+        delete[] hashValues;
+        delete[] indices;
+        capacity = other.capacity;
+        size = other.size;
+        hashTableSize = other.hashTableSize;
+        data = new T[capacity];
+        hashValues = new size_t[hashTableSize];
+        indices = new size_t[hashTableSize];
+        for (size_t i = 0; i < size; ++i) {
+            data[i] = other.data[i];
+        }
+        for (size_t i = 0; i < hashTableSize; ++i) {
+            hashValues[i] = other.hashValues[i];
+            indices[i] = other.indices[i];
+        }
+        return *this;
+    }
+
+    // 拷贝构造函数
+    MyVector(const MyVector& other)
+        : capacity(other.capacity), size(other.size), hashTableSize(other.hashTableSize)
+    {
+        data = new T[capacity];
+        hashValues = new size_t[hashTableSize];
+        indices = new size_t[hashTableSize];
+        for (size_t i = 0; i < size; ++i) {
+            data[i] = other.data[i];
+        }
+        for (size_t i = 0; i < hashTableSize; ++i) {
+            hashValues[i] = other.hashValues[i];
+            indices[i] = other.indices[i];
+        }
+    }
+
     template<typename U = T>
     std::enable_if_t<std::is_same<U, User>::value, void>
     rebuildHashTable() {
