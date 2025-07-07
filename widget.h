@@ -58,6 +58,7 @@ private slots:
     void on_navUser_clicked();
     void on_navImport_clicked();
     void refreshBookTable(class QTableWidget *table);
+    void refreshBookTable(QTableWidget *table, int fieldIndex, const QString &keyword);
     void onAddBook(class QTableWidget *table);
     void onEditBook(class QTableWidget *table);
     void onDeleteBook(class QTableWidget *table);

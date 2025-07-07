@@ -198,6 +198,21 @@ QPushButton:pressed {
     bookTable->setSelectionMode(QAbstractItemView::SingleSelection);
     
     // 操作按钮
+    QHBoxLayout *bookSearchLayout = new QHBoxLayout();
+    QComboBox *bookFieldCombo = new QComboBox(bookPage);
+    bookFieldCombo->addItem("ISBN");
+    bookFieldCombo->addItem("书名");
+    bookFieldCombo->addItem("作者");
+    bookFieldCombo->addItem("出版社");
+    bookFieldCombo->addItem("出版年份");
+    QLineEdit *bookSearchEdit = new QLineEdit(bookPage);
+    bookSearchEdit->setPlaceholderText("输入关键字搜索");
+    QPushButton *btnSearchBook = new QPushButton("搜索", bookPage);
+    bookSearchLayout->addWidget(bookFieldCombo);
+    bookSearchLayout->addWidget(bookSearchEdit);
+    bookSearchLayout->addWidget(btnSearchBook);
+    bookSearchLayout->addStretch();
+    bookLayout->insertLayout(0, bookSearchLayout); // 插入到最上方
     QHBoxLayout *btnLayout = new QHBoxLayout();
     QPushButton *btnAdd = new QPushButton("添加图书", bookPage);
     QPushButton *btnEdit = new QPushButton("修改图书", bookPage);
@@ -338,6 +353,12 @@ QPushButton:pressed {
             QMessageBox::warning(this, "权限不足", "只有管理员才能批量导入图书。");
         }
     });
+    connect(btnSearchBook, &QPushButton::clicked, this, [=]{
+        refreshBookTable(bookTable, bookFieldCombo->currentIndex(), bookSearchEdit->text());
+    });
+    connect(bookSearchEdit, &QLineEdit::returnPressed, this, [=]{
+        refreshBookTable(bookTable, bookFieldCombo->currentIndex(), bookSearchEdit->text());
+    });
     
     // 借阅管理功能信号槽 - 需要登录，普通用户只能操作自己的记录
     connect(btnBorrowBook, &QPushButton::clicked, this,[this, borrowTable]{
@@ -418,6 +439,7 @@ QPushButton:pressed {
     btnDeleteUser->setStyleSheet(btnStyle);
     btnRefreshUser->setStyleSheet(btnStyle);
     btnSearchUser->setStyleSheet(btnStyle);
+    btnSearchBook->setStyleSheet(btnStyle);
 
     QString tableStyle = R"(
     QTableWidget {
@@ -908,6 +930,55 @@ void Widget::refreshBookTable(QTableWidget *table)
         table->setItem(i, 2, new QTableWidgetItem(QString::fromStdString(books[i].getAuthor())));
         table->setItem(i, 3, new QTableWidgetItem(QString::fromStdString(books[i].getPublisher())));
         table->setItem(i, 4, new QTableWidgetItem(QString::number(books[i].getPublishYear())));
+    }
+}
+
+void Widget::refreshBookTable(QTableWidget *table, int fieldIndex, const QString &keyword)
+{
+    table->setRowCount(0);
+    MyVector<Book> result;
+    QString key = keyword.trimmed();
+    if (key.isEmpty()) {
+        result = bookManager.getAllBooks();
+    } else {
+        std::string keyStr = key.toStdString();
+        switch (fieldIndex) {
+        case 0: //ISBN
+            {
+                Book* pBook = bookManager.findBookByIsbn(keyStr);
+                if (pBook) {
+                    result.add(*pBook); // 传递 Book 对象引用
+                }
+            }
+            break;
+        case 1: //书名
+            result = bookManager.findBooksByTitle(keyStr);
+            break;
+        case 2: // 作者
+            result = bookManager.findBooksByAuthor(keyStr);
+            break;
+        case 3: // 出版社
+            result = bookManager.findBooksByPublisher(keyStr);
+            break;
+        case 4: // 出版年份
+            {
+                bool ok = false;
+                int year = key.toInt(&ok);
+                if (ok) {
+                    result = bookManager.findBooksByYear(year);
+                }
+            }
+            break;
+        }
+
+    }
+    for (size_t i = 0; i < result.getSize(); ++i) {
+        table->insertRow(i);
+        table->setItem(i, 0, new QTableWidgetItem(QString::fromStdString(result[i].getIsbn())));
+        table->setItem(i, 1, new QTableWidgetItem(QString::fromStdString(result[i].getTitle())));
+        table->setItem(i, 2, new QTableWidgetItem(QString::fromStdString(result[i].getAuthor())));
+        table->setItem(i, 3, new QTableWidgetItem(QString::fromStdString(result[i].getPublisher())));
+        table->setItem(i, 4, new QTableWidgetItem(QString::number(result[i].getPublishYear())));
     }
 }
 
