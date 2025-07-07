@@ -85,6 +85,7 @@ private:
     QPushButton *btnBook;
     QPushButton *btnBorrow;
     QPushButton *btnUser;
+    QPushButton *btnBorrowBookPage;
     
     // 登录状态管理
     bool isLoggedIn = false;
@@ -100,6 +101,7 @@ private:
     void logoutUser();
     bool checkPermissionAndNavigate(int targetPage, Role requiredRole = USER);
     void switchToPage(int pageIndex);
+    void switchToBorrowBookPage();
     void updateLoginStatus();
     void saveUserData();
     void loadUserData();
@@ -113,5 +115,6 @@ private:
     static const int BOOK_PAGE = 0;
     static const int BORROW_PAGE = 1;
     static const int USER_PAGE = 2;
+    static const int BORROW_BOOK_PAGE = 3;
 };
 #endif // WIDGET_H
