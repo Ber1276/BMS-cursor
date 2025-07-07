@@ -12,9 +12,7 @@ void BookManager::addBook(const Book& book) {
 }
 
 bool BookManager::removeBook(const std::string& isbn) {
-    auto getIsbn = [](const Book& book) -> std::string { return book.getIsbn(); };
-    auto comp = [](const std::string& a, const std::string& b) { return a < b; };
-    int index = books.binarySearch(isbn, getIsbn, comp);
+    int index = books.hashFindByIsbn(isbn);
     if (index >= 0) {
         books.removeAt(index);
         return true;
@@ -23,9 +21,7 @@ bool BookManager::removeBook(const std::string& isbn) {
 }
 
 bool BookManager::updateBook(const std::string& isbn, const Book& updatedBook) {
-    auto getIsbn = [](const Book& book) -> std::string { return book.getIsbn(); };
-    auto comp = [](const std::string& a, const std::string& b) { return a < b; };
-    int index = books.binarySearch(isbn, getIsbn, comp);
+    int index = books.hashFindByIsbn(isbn);
     if (index >= 0 && updatedBook.getIsbn() == isbn) {
         books[index] = updatedBook;
         return true;
@@ -34,9 +30,7 @@ bool BookManager::updateBook(const std::string& isbn, const Book& updatedBook) {
 }
 
 bool BookManager::updateBookField(const std::string& isbn, const std::string& field, const std::string& newValue) {
-    auto getIsbn = [](const Book& book) -> std::string { return book.getIsbn(); };
-    auto comp = [](const std::string& a, const std::string& b) { return a < b; };
-    int index = books.binarySearch(isbn, getIsbn, comp);
+    int index = books.hashFindByIsbn(isbn);
     if (index >= 0) {
         try {
             if (field == "title") {

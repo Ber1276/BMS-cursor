@@ -69,9 +69,11 @@ public:
         if (index >= size) {
             throw std::out_of_range("Index out of range");
         }
-        data[index].~T();
         for (size_t i = index; i < size - 1; ++i) {
             data[i] = data[i + 1];
+        }
+        if (size > 0) {
+            data[size - 1] = T(); // 置为默认值，防止悬挂
         }
         --size;
         if constexpr (std::is_same<T, User>::value) {
