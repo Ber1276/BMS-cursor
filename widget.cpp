@@ -81,7 +81,29 @@ void Widget::setupCustomUi()
     QHBoxLayout *titleLayout = new QHBoxLayout(titleBar);
     titleLayout->setContentsMargins(0, 0, 8, 0);
     titleLayout->addStretch();
-    
+
+    QPushButton *btnLogin = new QPushButton("登录", titleBar);
+    btnLogin->setObjectName("btnLogin");
+    btnLogin->setStyleSheet(R"(
+        QPushButton {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        QPushButton:hover {
+            background: #388E3C;
+        }
+        QPushButton:pressed {
+            background: #2E7D32;
+        }
+    )");
+    btnLogin->setVisible(!isLoggedIn); // 未登录时显示，登录后隐藏
+    titleLayout->addWidget(btnLogin);
+
     // 添加登录状态显示
     QLabel *loginStatusLabel = new QLabel("未登录", titleBar);
     loginStatusLabel->setObjectName("loginStatusLabel");
@@ -365,6 +387,11 @@ QPushButton:pressed {
     });
     connect(btnClose, &QPushButton::clicked, this, &QWidget::close);
     connect(btnLogout, &QPushButton::clicked, this, &Widget::logoutUser);
+    connect(btnLogin, &QPushButton::clicked, this, [this, btnLogin]{
+        if (showGlobalLoginDialog()) {
+            updateLoginStatus();
+        }
+    });
 
     // 优化按钮样式
     QString btnStyle = R"(
@@ -771,6 +798,7 @@ void Widget::updateLoginStatus()
     QWidget *titleBar = findChild<QWidget*>("titleBar");
     if (titleBar) {
         QLabel *loginStatusLabel = titleBar->findChild<QLabel*>("loginStatusLabel");
+        QPushButton *btnLogin = titleBar->findChild<QPushButton*>("btnLogin");
         QPushButton *btnLogout = titleBar->findChild<QPushButton*>("btnLogout");
         if (loginStatusLabel) {
             if (isLoggedIn) {
@@ -784,6 +812,9 @@ void Widget::updateLoginStatus()
         }
         if (btnLogout) {
             btnLogout->setVisible(isLoggedIn);
+        }
+        if (btnLogin) {
+            btnLogin->setVisible(!isLoggedIn);
         }
     }
     
