@@ -62,39 +62,37 @@ Book* BookManager::findBookByIsbn(const std::string& isbn) {
 
 MyVector<Book> BookManager::findBooksByPublisher(const std::string& publisher) {
     MyVector<Book> result;
-    auto getPublisher = [](const Book& book) -> std::string { return book.getPublisher(); };
-    auto comp = [](const std::string& a, const std::string& b) { return a < b; };
-    int index = books.binarySearch(publisher, getPublisher, comp);
-    if (index >= 0) {
-        int left = index, right = index;
-        while (left >= 0 && books[left].getPublisher() == publisher) {
-            result.push_back(books[left]);
-            --left;
-        }
-        while (right < books.getSize() && books[right].getPublisher() == publisher) {
-            if (right > index) {
-                result.push_back(books[right]);
-            }
-            ++right;
+    for (size_t i = 0; i < books.getSize(); ++i) {
+        const Book& book = books[i];
+        if (book.getPublisher().find(publisher) != std::string::npos) {
+            result.add(book);
         }
     }
     return result;
 }
 
 MyVector<Book> BookManager::findBooksByYear(int year) {
+    // 1. 拷贝一份 books
+    MyVector<Book> sortedBooks = books;
+    // 2. 排序
+    auto comp = [](const Book& a, const Book& b) { return a.getPublishYear() < b.getPublishYear(); };
+    if (sortedBooks.getSize() > 1) {
+        MyAlgorithm::sort(&sortedBooks[0], static_cast<int>(sortedBooks.getSize()), comp);
+    }
+    // 3. 二分查找
     MyVector<Book> result;
     auto getYear = [](const Book& book) -> int { return book.getPublishYear(); };
-    auto comp = [](const int a, const int b) { return a < b; };
-    int index = books.binarySearch(year, getYear, comp);
+    auto yearComp = [](const int a, const int b) { return a < b; };
+    int index = sortedBooks.binarySearch(year, getYear, yearComp);
     if (index >= 0) {
         int left = index, right = index;
-        while (left >= 0 && books[left].getPublishYear() == year) {
-            result.push_back(books[left]);
+        while (left >= 0 && sortedBooks[left].getPublishYear() == year) {
+            result.push_back(sortedBooks[left]);
             --left;
         }
-        while (right < books.getSize() && books[right].getPublishYear() == year) {
+        while (right < sortedBooks.getSize() && sortedBooks[right].getPublishYear() == year) {
             if (right > index) {
-                result.push_back(books[right]);
+                result.push_back(sortedBooks[right]);
             }
             ++right;
         }
@@ -126,41 +124,22 @@ const MyVector<Book>& BookManager::getAllBooks() const {
 
 MyVector<Book> BookManager::findBooksByTitle(const std::string& title) {
     MyVector<Book> result;
-    auto getTitle = [](const Book& book) -> std::string { return book.getTitle(); };
-    auto comp = [](const std::string& a, const std::string& b) { return a < b; };
-    int index = books.binarySearch(title, getTitle, comp);
-    if (index >= 0) {
-        int left = index, right = index;
-        while (left >= 0 && books[left].getTitle() == title) {
-            result.push_back(books[left]);
-            --left;
-        }
-        while (right < books.getSize() && books[right].getTitle() == title) {
-            if (right > index) {
-                result.push_back(books[right]);
-            }
-            ++right;
+    for (size_t i = 0; i < books.getSize(); ++i) {
+        const Book& book = books[i];
+        if (book.getTitle().find(title) != std::string::npos) {
+            result.add(book);
         }
     }
     return result;
+
 }
 
 MyVector<Book> BookManager::findBooksByAuthor(const std::string& author) {
     MyVector<Book> result;
-    auto getAuthor = [](const Book& book) -> std::string { return book.getAuthor(); };
-    auto comp = [](const std::string& a, const std::string& b) { return a < b; };
-    int index = books.binarySearch(author, getAuthor, comp);
-    if (index >= 0) {
-        int left = index, right = index;
-        while (left >= 0 && books[left].getAuthor() == author) {
-            result.push_back(books[left]);
-            --left;
-        }
-        while (right < books.getSize() && books[right].getAuthor() == author) {
-            if (right > index) {
-                result.push_back(books[right]);
-            }
-            ++right;
+    for (size_t i = 0; i < books.getSize(); ++i) {
+        const Book& book = books[i];
+        if (book.getAuthor().find(author) != std::string::npos) {
+            result.add(book);
         }
     }
     return result;
