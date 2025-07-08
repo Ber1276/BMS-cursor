@@ -1956,12 +1956,35 @@ void Widget::onImportBooks(QTableWidget *table)
     progress->exec();
 }
 
+static const QString BUTTON_STYLE = R"(
+    QPushButton {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: bold;
+        min-width: 60px;
+        min-height: 24px;
+    }
+    QPushButton:hover { background-color: #45a049; }
+    QPushButton:pressed { background-color: #3d8b40; }
+    QPushButton:disabled { background-color: #cccccc; color: #666666; }
+)";
+
+
 void Widget::refreshBorrowPageTable(QTableWidget *table)
 {
-    table->setRowCount(0);
+    table->setUpdatesEnabled(false);      // 禁用刷新，提升性能
+    table->blockSignals(true);            // 禁用信号，防止多余触发
+
     const auto &books = bookManager.getAllBooks();
-    for (size_t i = 0; i < books.getSize(); ++i) {
-        table->insertRow(i);
+    int rowCount = static_cast<int>(books.getSize());
+    table->clearContents();
+    table->setRowCount(rowCount);         // 一次性设置行数
+
+    for (int i = 0; i < rowCount; ++i) {
         const Book &book = books[i];
         QString isbn = QString::fromStdString(book.getIsbn());
         QString title = QString::fromStdString(book.getTitle());
@@ -1974,40 +1997,27 @@ void Widget::refreshBorrowPageTable(QTableWidget *table)
         table->setItem(i, 3, new QTableWidgetItem(publisher));
         table->setItem(i, 4, new QTableWidgetItem(year));
         // 借阅按钮
-        QPushButton *btn = new QPushButton("借阅");
-        btn->setStyleSheet(R"(
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 2px 12px;
-                font-size: 12px;
-                font-weight: bold;
-                min-width: 60px;
-                min-height: 24px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:pressed {
-                background-color: #3d8b40;
-            }
-            QPushButton:disabled {
-                background-color: #cccccc;
-                color: #666666;
-            }
-        )");
-        table->setCellWidget(i, 5, btn);
-        connect(btn, &QPushButton::clicked, this, [this, isbn, title](){
-            handleBorrowPageBorrowClicked(isbn, title);
-        });
+        QPushButton *btn = qobject_cast<QPushButton*>(table->cellWidget(i, 5));
+        if (!btn) {
+            btn = new QPushButton("借阅");
+            btn->setStyleSheet(BUTTON_STYLE);
+            table->setCellWidget(i, 5, btn);
+            connect(btn, &QPushButton::clicked, this, [this, isbn, title](){
+                handleBorrowPageBorrowClicked(isbn, title);
+            });
+        }
     }
+
+    table->blockSignals(false);           // 恢复信号
+    table->setUpdatesEnabled(true);       // 恢复刷新
 }
 
 void Widget::refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const QString &keyword)
 {
-    table->setRowCount(0);
+    table->setUpdatesEnabled(false); // 1. 禁用刷新
+    table->blockSignals(true);
+
+    table->clearContents();
     MyVector<Book> result;
     QString key = keyword.trimmed();
     if (key.isEmpty()) {
@@ -2015,78 +2025,57 @@ void Widget::refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const Q
     } else {
         std::string keyStr = key.toStdString();
         switch (fieldIndex) {
-        case 0: //ISBN
-        {
+        case 0: {
             Book* pBook = bookManager.findBookByIsbn(keyStr);
-            if (pBook) {
-                result.add(*pBook); // 传递 Book 对象引用
-            }
+            if (pBook) result.add(*pBook);
+            break;
         }
-        break;
-        case 1: //书名
+        case 1:
             result = bookManager.findBooksByTitle(keyStr);
             break;
-        case 2: // 作者
+        case 2:
             result = bookManager.findBooksByAuthor(keyStr);
             break;
-        case 3: // 出版社
+        case 3:
             result = bookManager.findBooksByPublisher(keyStr);
             break;
-        case 4: // 出版年份
-        {
+        case 4: {
             bool ok = false;
             int year = key.toInt(&ok);
-            if (ok) {
-                result = bookManager.findBooksByYear(year);
-            }
+            if (ok) result = bookManager.findBooksByYear(year);
+            break;
         }
-        break;
         }
-
     }
+
+    table->setRowCount(static_cast<int>(result.getSize())); // 2. 直接设置行数
+
     for (size_t i = 0; i < result.getSize(); ++i) {
-        table->insertRow(i);
         const Book &book = result[i];
         QString isbn = QString::fromStdString(book.getIsbn());
         QString title = QString::fromStdString(book.getTitle());
         QString author = QString::fromStdString(book.getAuthor());
         QString publisher = QString::fromStdString(book.getPublisher());
         QString year = QString::number(book.getPublishYear());
-        table->setItem(i, 0, new QTableWidgetItem(isbn));
-        table->setItem(i, 1, new QTableWidgetItem(title));
-        table->setItem(i, 2, new QTableWidgetItem(author));
-        table->setItem(i, 3, new QTableWidgetItem(publisher));
-        table->setItem(i, 4, new QTableWidgetItem(year));
+        table->setItem(static_cast<int>(i), 0, new QTableWidgetItem(isbn));
+        table->setItem(static_cast<int>(i), 1, new QTableWidgetItem(title));
+        table->setItem(static_cast<int>(i), 2, new QTableWidgetItem(author));
+        table->setItem(static_cast<int>(i), 3, new QTableWidgetItem(publisher));
+        table->setItem(static_cast<int>(i), 4, new QTableWidgetItem(year));
         // 借阅按钮
-        QPushButton *btn = new QPushButton("借阅");
-        btn->setStyleSheet(R"(
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-size: 12px;
-                font-weight: bold;
-                min-width: 60px;
-                min-height: 24px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:pressed {
-                background-color: #3d8b40;
-            }
-            QPushButton:disabled {
-                background-color: #cccccc;
-                color: #666666;
-            }
-        )");
-        table->setCellWidget(i, 5, btn);
-        connect(btn, &QPushButton::clicked, this, [this, isbn, title](){
-            handleBorrowPageBorrowClicked(isbn, title);
-        });
+        QPushButton *btn = qobject_cast<QPushButton*>(table->cellWidget(i, 5));
+        if (!btn) {
+            btn = new QPushButton("借阅");
+            btn->setStyleSheet(BUTTON_STYLE);
+            table->setCellWidget(i, 5, btn);
+            connect(btn, &QPushButton::clicked, this, [this, isbn, title](){
+                handleBorrowPageBorrowClicked(isbn, title);
+            });
+        }
     }
+
+    table->blockSignals(false);
+    table->setUpdatesEnabled(true); // 3. 启用刷新
 }
 
 void Widget::handleBorrowPageBorrowClicked(const QString &isbn, const QString &title)
