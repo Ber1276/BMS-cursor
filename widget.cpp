@@ -570,10 +570,10 @@ QPushButton:pressed {
         }
     });
     connect(borrowPage_searchBtn, &QPushButton::clicked, this, [=]{
-        refreshBookTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text());
+        refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text());
     });
     connect(borrowPage_searchEdit, &QLineEdit::returnPressed, this, [=]{
-        refreshBookTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text());
+        refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text());
     });
 
 
@@ -695,6 +695,7 @@ QPushButton:pressed {
     refreshBookTable(bookTable);
     // refreshBorrowTable(borrowTable);
     refreshUserTable(userTable);
+    refreshBorrowPageTable(borrowPage_table);
     
     // 更新登录状态显示
     updateLoginStatus();
