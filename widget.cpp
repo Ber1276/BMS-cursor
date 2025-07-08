@@ -707,48 +707,53 @@ bool Widget::showGlobalLoginDialog()
 {
     QDialog dialog(this);
     dialog.setWindowTitle("用户登录");
-    dialog.setFixedSize(300, 200);
+    dialog.setFixedSize(380, 320);
     dialog.setModal(true);
     
     QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
+    mainLayout->setSpacing(20);
+    mainLayout->setContentsMargins(30, 25, 30, 25);
     
     // 设置对话框整体样式
     dialog.setStyleSheet(R"(
         QDialog {
-            background-color: #ffffff;
-            color: #2c3e50;
+            background: #fff;
+            color: #222;
+            border: 1px solid #e0e0e0;
         }
         QLabel {
-            color: #2c3e50;
-            font-size: 14px;
+            color: #222;
+            font-size: 15px;
         }
         QLineEdit {
-            background-color: #ffffff;
-            border: 2px solid #bdc3c7;
+            background: #fff;
+            border: 1.5px solid #e0e0e0;
             border-radius: 6px;
-            padding: 8px 12px;
-            font-size: 14px;
-            color: #2c3e50;
-            selection-background-color: #3498db;
+            padding: 12px 16px;
+            font-size: 15px;
+            color: #222;
+            min-height: 28px;
         }
         QLineEdit:focus {
-            border-color: #3498db;
-            background-color: #ffffff;
+            border-color: #1976d2;
+            background: #fff;
         }
         QLineEdit::placeholder {
-            color: #95a5a6;
+            color: #b0b0b0;
+            font-style: normal;
         }
         QComboBox {
-            background-color: #ffffff;
-            border: 2px solid #bdc3c7;
+            background: #fff;
+            border: 1.5px solid #e0e0e0;
             border-radius: 6px;
-            padding: 8px 12px;
-            font-size: 14px;
-            color: #2c3e50;
+            padding: 12px 16px;
+            font-size: 15px;
+            color: #222;
             min-width: 120px;
+            min-height: 28px;
         }
         QComboBox:focus {
-            border-color: #3498db;
+            border-color: #1976d2;
         }
         QComboBox::drop-down {
             border: none;
@@ -758,88 +763,123 @@ bool Widget::showGlobalLoginDialog()
             image: none;
             border-left: 5px solid transparent;
             border-right: 5px solid transparent;
-            border-top: 5px solid #7f8c8d;
+            border-top: 5px solid #888;
             margin-right: 8px;
         }
         QComboBox QAbstractItemView {
-            background-color: #ffffff;
-            border: 2px solid #bdc3c7;
+            background: #fff;
+            border: 1.5px solid #e0e0e0;
             border-radius: 6px;
-            selection-background-color: #3498db;
-            color: #2c3e50;
+            selection-background-color: #e3f2fd;
+            color: #222;
+            padding: 8px;
         }
     )");
     
-    // 标题
-    QLabel *titleLabel = new QLabel("请登录以继续操作", &dialog);
+    // 标题区域
+    QLabel *titleLabel = new QLabel("用户登录", &dialog);
     titleLabel->setAlignment(Qt::AlignCenter);
-    titleLabel->setStyleSheet("font-size: 16px; font-weight: bold; color: #2c3e50; margin: 15px;");
+    titleLabel->setStyleSheet(R"(
+        font-size: 22px;
+        font-weight: bold;
+        color: #222;
+        margin: 0 0 18px 0;
+        padding: 0;
+        background: transparent;
+    )");
     mainLayout->addWidget(titleLabel);
     
-    // 表单
+    // 表单区域
     QFormLayout *formLayout = new QFormLayout();
-    formLayout->setSpacing(12);
+    formLayout->setSpacing(18);
     formLayout->setLabelAlignment(Qt::AlignRight);
+    formLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     
     QLineEdit *usernameEdit = new QLineEdit(&dialog);
+    usernameEdit->setPlaceholderText("请输入用户名");
     QLineEdit *passwordEdit = new QLineEdit(&dialog);
+    passwordEdit->setPlaceholderText("请输入密码");
     passwordEdit->setEchoMode(QLineEdit::Password);
     
     // 设置标签样式
     QLabel *usernameLabel = new QLabel("用户名:", &dialog);
     QLabel *passwordLabel = new QLabel("密码:", &dialog);
-    usernameLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
-    passwordLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
+    QString labelStyle = R"(
+        font-weight: 500;
+        color: #444;
+        font-size: 15px;
+        padding: 4px 0;
+    )";
+    usernameLabel->setStyleSheet(labelStyle);
+    passwordLabel->setStyleSheet(labelStyle);
     
     formLayout->addRow(usernameLabel, usernameEdit);
     formLayout->addRow(passwordLabel, passwordEdit);
     mainLayout->addLayout(formLayout);
     
+    // 添加一些间距
+    mainLayout->addSpacing(10);
+    
     // 按钮布局
     QHBoxLayout *btnLayout = new QHBoxLayout();
+    btnLayout->setSpacing(12);
+    
     QPushButton *btnLogin = new QPushButton("登录", &dialog);
     QPushButton *btnRegister = new QPushButton("注册", &dialog);
     QPushButton *btnCancel = new QPushButton("取消", &dialog);
     
+    // 设置按钮固定大小
+    btnLogin->setFixedSize(80, 36);
+    btnRegister->setFixedSize(80, 36);
+    btnCancel->setFixedSize(80, 36);
+    
+    btnLayout->addStretch();
     btnLayout->addWidget(btnLogin);
     btnLayout->addWidget(btnRegister);
     btnLayout->addWidget(btnCancel);
+    btnLayout->addStretch();
     mainLayout->addLayout(btnLayout);
     
     // 设置按钮样式
     QString btnStyle = R"(
         QPushButton {
-            background: #4CAF50;
-            color: white;
+            background: #1976d2;
+            color: #fff;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 500;
+            padding: 8px 0;
         }
         QPushButton:hover {
-            background: #45a049;
+            background: #1565c0;
         }
         QPushButton:pressed {
-            background: #3d8b40;
+            background: #0d47a1;
         }
     )";
     
+    QString registerBtnStyle = btnStyle;
     QString cancelBtnStyle = R"(
         QPushButton {
-            background: #f44336;
-            color: white;
+            background: #e0e0e0;
+            color: #666;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 500;
+            padding: 8px 0;
         }
         QPushButton:hover {
-            background: #da190b;
+            background: #cccccc;
+        }
+        QPushButton:pressed {
+            background: #bdbdbd;
         }
     )";
     
     btnLogin->setStyleSheet(btnStyle);
-    btnRegister->setStyleSheet(btnStyle);
+    btnRegister->setStyleSheet(registerBtnStyle);
     btnCancel->setStyleSheet(cancelBtnStyle);
     
     // 连接信号槽
@@ -880,48 +920,53 @@ bool Widget::showGlobalRegisterDialog()
 {
     QDialog dialog(this);
     dialog.setWindowTitle("用户注册");
-    dialog.setFixedSize(350, 250);
+    dialog.setFixedSize(420, 420);
     dialog.setModal(true);
     
     QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
+    mainLayout->setSpacing(20);
+    mainLayout->setContentsMargins(30, 25, 30, 25);
     
     // 设置对话框整体样式（与登录对话框保持一致）
     dialog.setStyleSheet(R"(
         QDialog {
-            background-color: #ffffff;
-            color: #2c3e50;
+            background: #fff;
+            color: #222;
+            border: 1px solid #e0e0e0;
         }
         QLabel {
-            color: #2c3e50;
-            font-size: 14px;
+            color: #222;
+            font-size: 15px;
         }
         QLineEdit {
-            background-color: #ffffff;
-            border: 2px solid #bdc3c7;
+            background: #fff;
+            border: 1.5px solid #e0e0e0;
             border-radius: 6px;
-            padding: 8px 12px;
-            font-size: 14px;
-            color: #2c3e50;
-            selection-background-color: #3498db;
+            padding: 12px 16px;
+            font-size: 15px;
+            color: #222;
+            min-height: 28px;
         }
         QLineEdit:focus {
-            border-color: #3498db;
-            background-color: #ffffff;
+            border-color: #1976d2;
+            background: #fff;
         }
         QLineEdit::placeholder {
-            color: #95a5a6;
+            color: #b0b0b0;
+            font-style: normal;
         }
         QComboBox {
-            background-color: #ffffff;
-            border: 2px solid #bdc3c7;
+            background: #fff;
+            border: 1.5px solid #e0e0e0;
             border-radius: 6px;
-            padding: 8px 12px;
-            font-size: 14px;
-            color: #2c3e50;
+            padding: 12px 16px;
+            font-size: 15px;
+            color: #222;
             min-width: 120px;
+            min-height: 28px;
         }
         QComboBox:focus {
-            border-color: #3498db;
+            border-color: #1976d2;
         }
         QComboBox::drop-down {
             border: none;
@@ -931,32 +976,44 @@ bool Widget::showGlobalRegisterDialog()
             image: none;
             border-left: 5px solid transparent;
             border-right: 5px solid transparent;
-            border-top: 5px solid #7f8c8d;
+            border-top: 5px solid #888;
             margin-right: 8px;
         }
         QComboBox QAbstractItemView {
-            background-color: #ffffff;
-            border: 2px solid #bdc3c7;
+            background: #fff;
+            border: 1.5px solid #e0e0e0;
             border-radius: 6px;
-            selection-background-color: #3498db;
-            color: #2c3e50;
+            selection-background-color: #e3f2fd;
+            color: #222;
+            padding: 8px;
         }
     )");
     
-    // 标题
-    QLabel *titleLabel = new QLabel("创建新用户账户", &dialog);
+    // 标题区域
+    QLabel *titleLabel = new QLabel("用户注册", &dialog);
     titleLabel->setAlignment(Qt::AlignCenter);
-    titleLabel->setStyleSheet("font-size: 16px; font-weight: bold; color: #2c3e50; margin: 15px;");
+    titleLabel->setStyleSheet(R"(
+        font-size: 22px;
+        font-weight: bold;
+        color: #222;
+        margin: 0 0 18px 0;
+        padding: 0;
+        background: transparent;
+    )");
     mainLayout->addWidget(titleLabel);
     
-    // 表单
+    // 表单区域
     QFormLayout *formLayout = new QFormLayout();
-    formLayout->setSpacing(12);
+    formLayout->setSpacing(18);
     formLayout->setLabelAlignment(Qt::AlignRight);
+    formLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     
     QLineEdit *usernameEdit = new QLineEdit(&dialog);
+    usernameEdit->setPlaceholderText("请输入用户名");
     QLineEdit *passwordEdit = new QLineEdit(&dialog);
+    passwordEdit->setPlaceholderText("请输入密码（至少6位）");
     QLineEdit *confirmPasswordEdit = new QLineEdit(&dialog);
+    confirmPasswordEdit->setPlaceholderText("请再次输入密码");
     QComboBox *roleCombo = new QComboBox(&dialog);
     
     passwordEdit->setEchoMode(QLineEdit::Password);
@@ -970,10 +1027,16 @@ bool Widget::showGlobalRegisterDialog()
     QLabel *confirmPasswordLabel = new QLabel("确认密码:", &dialog);
     QLabel *roleLabel = new QLabel("角色:", &dialog);
     
-    usernameLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
-    passwordLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
-    confirmPasswordLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
-    roleLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
+    QString labelStyle = R"(
+        font-weight: 500;
+        color: #444;
+        font-size: 15px;
+        padding: 4px 0;
+    )";
+    usernameLabel->setStyleSheet(labelStyle);
+    passwordLabel->setStyleSheet(labelStyle);
+    confirmPasswordLabel->setStyleSheet(labelStyle);
+    roleLabel->setStyleSheet(labelStyle);
     
     formLayout->addRow(usernameLabel, usernameEdit);
     formLayout->addRow(passwordLabel, passwordEdit);
@@ -981,45 +1044,64 @@ bool Widget::showGlobalRegisterDialog()
     formLayout->addRow(roleLabel, roleCombo);
     mainLayout->addLayout(formLayout);
     
+    // 添加一些间距
+    mainLayout->addSpacing(10);
+    
     // 按钮布局
     QHBoxLayout *btnLayout = new QHBoxLayout();
+    btnLayout->setSpacing(12);
+    
     QPushButton *btnRegister = new QPushButton("注册", &dialog);
     QPushButton *btnCancel = new QPushButton("取消", &dialog);
     
+    // 设置按钮固定大小
+    btnRegister->setFixedSize(80, 36);
+    btnCancel->setFixedSize(80, 36);
+    
+    btnLayout->addStretch();
     btnLayout->addWidget(btnRegister);
     btnLayout->addWidget(btnCancel);
+    btnLayout->addStretch();
     mainLayout->addLayout(btnLayout);
     
     // 设置按钮样式
-    QString btnStyle = R"(
+    QString registerBtnStyle = R"(
         QPushButton {
-            background: #2196F3;
-            color: white;
+            background: #1976d2;
+            color: #fff;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 500;
+            padding: 8px 0;
         }
         QPushButton:hover {
-            background: #1976D2;
+            background: #1565c0;
+        }
+        QPushButton:pressed {
+            background: #0d47a1;
         }
     )";
     
     QString cancelBtnStyle = R"(
         QPushButton {
-            background: #f44336;
-            color: white;
+            background: #e0e0e0;
+            color: #666;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 500;
+            padding: 8px 0;
         }
         QPushButton:hover {
-            background: #da190b;
+            background: #cccccc;
+        }
+        QPushButton:pressed {
+            background: #bdbdbd;
         }
     )";
     
-    btnRegister->setStyleSheet(btnStyle);
+    btnRegister->setStyleSheet(registerBtnStyle);
     btnCancel->setStyleSheet(cancelBtnStyle);
     
     // 连接信号槽
@@ -1891,6 +1973,29 @@ void Widget::refreshBorrowPageTable(QTableWidget *table)
         table->setItem(i, 4, new QTableWidgetItem(year));
         // 借阅按钮
         QPushButton *btn = new QPushButton("借阅");
+        btn->setStyleSheet(R"(
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 2px 12px;
+                font-size: 12px;
+                font-weight: bold;
+                min-width: 60px;
+                min-height: 24px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:pressed {
+                background-color: #3d8b40;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        )");
         table->setCellWidget(i, 5, btn);
         connect(btn, &QPushButton::clicked, this, [this, isbn, title](){
             handleBorrowPageBorrowClicked(isbn, title);
@@ -1952,6 +2057,29 @@ void Widget::refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const Q
         table->setItem(i, 4, new QTableWidgetItem(year));
         // 借阅按钮
         QPushButton *btn = new QPushButton("借阅");
+        btn->setStyleSheet(R"(
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 6px 12px;
+                font-size: 12px;
+                font-weight: bold;
+                min-width: 60px;
+                min-height: 24px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:pressed {
+                background-color: #3d8b40;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        )");
         table->setCellWidget(i, 5, btn);
         connect(btn, &QPushButton::clicked, this, [this, isbn, title](){
             handleBorrowPageBorrowClicked(isbn, title);
