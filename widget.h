@@ -52,11 +52,6 @@ public:
     ~Widget();
 
 private slots:
-    void on_pushButton_clicked();
-    void on_navBook_clicked();
-    void on_navBorrow_clicked();
-    void on_navUser_clicked();
-    void on_navImport_clicked();
     void refreshBookTable(class QTableWidget *table);
     void refreshBookTable(QTableWidget *table, int fieldIndex, const QString &keyword);
     void onAddBook(class QTableWidget *table);

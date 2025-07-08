@@ -62,8 +62,8 @@ Widget::Widget(QWidget *parent)
     // 设置UI
     setupCustomUi();
     
-    // 默认显示图书管理页面（无需登录）
-    switchToPage(BOOK_PAGE);
+    // 默认显示借阅图书页面（无需登录）
+    switchToPage(BORROW_BOOK_PAGE);
 }
 
 Widget::~Widget()
@@ -527,7 +527,7 @@ QPushButton:pressed {
     setLayout(outerLayout);
     
     // 导航按钮信号槽 - 使用全局权限检查
-    connect(btnBook, &QPushButton::clicked, this ,[this](){ switchToPage(BOOK_PAGE); });
+    connect(btnBook, &QPushButton::clicked, this ,[this](){ checkPermissionAndNavigate(BOOK_PAGE, ADMIN); });
     connect(btnBorrow, &QPushButton::clicked, this,[this]{ checkPermissionAndNavigate(BORROW_PAGE, USER); });
     connect(btnUser, &QPushButton::clicked, this,[this]{ checkPermissionAndNavigate(USER_PAGE, ADMIN); });
     connect(btnBorrowBookPage, &QPushButton::clicked, this,[this]{ switchToPage(BORROW_BOOK_PAGE); });
@@ -1086,8 +1086,8 @@ bool Widget::checkPermissionAndNavigate(int targetPage, Role requiredRole)
                 return false;
             }
         } else {
-            // 用户取消登录，切换到图书管理页面
-            switchToPage(BOOK_PAGE);
+            // 用户取消登录，切换到借阅图书页面
+            switchToPage(BORROW_BOOK_PAGE);
             return false;
         }
     } else {
@@ -1275,9 +1275,9 @@ void Widget::logoutUser()
     currentUserRole = USER;
     updateLoginStatus();
     
-    // 如果当前在需要权限的页面，切换到图书管理页面
-    if (mainStack && mainStack->currentIndex() != BOOK_PAGE) {
-        switchToPage(BOOK_PAGE);
+    // 如果当前在需要权限的页面，切换到借阅图书页面
+    if (mainStack && mainStack->currentIndex() != BORROW_BOOK_PAGE) {
+        switchToPage(BORROW_BOOK_PAGE);
     }
 }
 
@@ -1466,15 +1466,7 @@ void Widget::onDeleteBook(QTableWidget *table)
     }
 }
 
-void Widget::on_pushButton_clicked()
-{
-    QMessageBox::information(this, "Button Clicked", "You clicked the button!");
-}
 
-void Widget::on_navBook_clicked(){}
-void Widget::on_navBorrow_clicked(){}
-void Widget::on_navUser_clicked(){}
-void Widget::on_navImport_clicked(){}
 
 void Widget::refreshBorrowTable(QTableWidget *table)
 {
