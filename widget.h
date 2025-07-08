@@ -101,6 +101,7 @@ private:
     void loadUserData();
     void saveBookAndBorrowData();
     void loadBookAndBorrowData();
+    void refreshBorrowDataFromFile();
     
     // 权限检查方法
     bool hasPermission(Role requiredRole);

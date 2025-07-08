@@ -345,9 +345,11 @@ QPushButton:pressed {
     QPushButton *btnBorrowBook = new QPushButton("借书", borrowPage);
     QPushButton *btnReturnBook = new QPushButton("还书", borrowPage);
     QPushButton *btnRenewBook = new QPushButton("续借", borrowPage);
+    QPushButton *btnRefreshBorrow = new QPushButton("刷新记录", borrowPage);
     borrowBtnLayout->addWidget(btnBorrowBook);
     borrowBtnLayout->addWidget(btnReturnBook);
     borrowBtnLayout->addWidget(btnRenewBook);
+    borrowBtnLayout->addWidget(btnRefreshBorrow);
     borrowBtnLayout->addStretch();
     borrowLayout->addLayout(borrowBtnLayout);
     borrowLayout->addWidget(borrowTable);
@@ -596,6 +598,17 @@ QPushButton:pressed {
             QMessageBox::warning(this, "未登录", "请先登录后再进行续借操作。");
         }
     });
+    connect(btnRefreshBorrow, &QPushButton::clicked, this,[this, borrowTable]{
+        if (isLoggedIn) {
+            // 从文件重新加载数据以确保数据一致性
+            refreshBorrowDataFromFile();
+            // 刷新表格显示
+            refreshBorrowTable(borrowTable);
+            QMessageBox::information(this, "刷新成功", "借阅记录已从文件重新加载并刷新！");
+        } else {
+            QMessageBox::warning(this, "未登录", "请先登录后再查看借阅记录。");
+        }
+    });
     
     // 用户管理功能信号槽
     connect(btnAddUser, &QPushButton::clicked, this,[this, userTable]{ onAddUser(userTable); });
@@ -648,6 +661,7 @@ QPushButton:pressed {
     btnBorrowBook->setStyleSheet(btnStyle);
     btnReturnBook->setStyleSheet(btnStyle);
     btnRenewBook->setStyleSheet(btnStyle);
+    btnRefreshBorrow->setStyleSheet(btnStyle);
     btnAddUser->setStyleSheet(btnStyle);
     btnEditUser->setStyleSheet(btnStyle);
     btnDeleteUser->setStyleSheet(btnStyle);
@@ -1389,6 +1403,13 @@ void Widget::onAddBook(QTableWidget *table)
         try {
             Book book(isbn.toStdString(), title.toStdString(), author.toStdString(), publisher.toStdString(), year);
             bookManager.addBook(book);
+            // 立即保存图书数据到文件，确保数据同步
+            QString bookDataPath = QCoreApplication::applicationDirPath() + "/books.json";
+            if (bookManager.saveToFile(bookDataPath)) {
+                qDebug() << "图书数据已保存到文件:" << bookDataPath;
+            } else {
+                qDebug() << "图书数据保存失败:" << bookDataPath;
+            }
             refreshBookTable(table);
         } catch (const std::exception &e) {
             QMessageBox::warning(this, "添加失败", e.what());
@@ -1447,6 +1468,13 @@ void Widget::onEditBook(QTableWidget *table)
                 QMessageBox::warning(this, "修改失败", "未找到原图书或更新失败。");
                 return;
             }
+            // 立即保存图书数据到文件，确保数据同步
+            QString bookDataPath = QCoreApplication::applicationDirPath() + "/books.json";
+            if (bookManager.saveToFile(bookDataPath)) {
+                qDebug() << "图书数据已保存到文件:" << bookDataPath;
+            } else {
+                qDebug() << "图书数据保存失败:" << bookDataPath;
+            }
             refreshBookTable(table);
         } catch (const std::exception &e) {
             QMessageBox::warning(this, "修改失败", e.what());
@@ -1467,6 +1495,13 @@ void Widget::onDeleteBook(QTableWidget *table)
         if (!bookManager.removeBook(isbn.toStdString())) {
             QMessageBox::warning(this, "删除失败", "未找到该图书或删除失败。");
             return;
+        }
+        // 立即保存图书数据到文件，确保数据同步
+        QString bookDataPath = QCoreApplication::applicationDirPath() + "/books.json";
+        if (bookManager.saveToFile(bookDataPath)) {
+            qDebug() << "图书数据已保存到文件:" << bookDataPath;
+        } else {
+            qDebug() << "图书数据保存失败:" << bookDataPath;
         }
         refreshBookTable(table);
     }
@@ -1531,6 +1566,13 @@ void Widget::onBorrowBook(QTableWidget *table)
         QString isbn = bookCombo->currentData().toString();
         try {
             borrowManager->borrowBook(isbn.toStdString(), currentUser.toStdString());
+            // 立即保存借阅记录到文件，确保数据同步
+            QString borrowDataPath = QCoreApplication::applicationDirPath() + "/borrow_records.json";
+            if (borrowManager->saveToFile(borrowDataPath)) {
+                qDebug() << "借阅记录已保存到文件:" << borrowDataPath;
+            } else {
+                qDebug() << "借阅记录保存失败:" << borrowDataPath;
+            }
             refreshBorrowTable(table);
             QMessageBox::information(this, "借书成功", "图书借阅成功！");
         } catch (const std::exception &e) {
@@ -1562,6 +1604,13 @@ void Widget::onReturnBook(QTableWidget *table)
     int recordId = table->item(row, 0)->text().toInt();
     try {
         borrowManager->returnBook(recordId);
+        // 立即保存借阅记录到文件，确保数据同步
+        QString borrowDataPath = QCoreApplication::applicationDirPath() + "/borrow_records.json";
+        if (borrowManager->saveToFile(borrowDataPath)) {
+            qDebug() << "借阅记录已保存到文件:" << borrowDataPath;
+        } else {
+            qDebug() << "借阅记录保存失败:" << borrowDataPath;
+        }
         refreshBorrowTable(table);
         QMessageBox::information(this, "还书成功", "图书归还成功！");
     } catch (const std::exception &e) {
@@ -1592,6 +1641,13 @@ void Widget::onRenewBook(QTableWidget *table)
     int recordId = table->item(row, 0)->text().toInt();
     try {
         borrowManager->renewBook(recordId);
+        // 立即保存借阅记录到文件，确保数据同步
+        QString borrowDataPath = QCoreApplication::applicationDirPath() + "/borrow_records.json";
+        if (borrowManager->saveToFile(borrowDataPath)) {
+            qDebug() << "借阅记录已保存到文件:" << borrowDataPath;
+        } else {
+            qDebug() << "借阅记录保存失败:" << borrowDataPath;
+        }
         refreshBorrowTable(table);
         QMessageBox::information(this, "续借成功", "图书续借成功！");
     } catch (const std::exception &e) {
@@ -1826,6 +1882,13 @@ void Widget::onImportBooks(QTableWidget *table)
 
     connect(watcher, &QFutureWatcher<int>::finished, this,[=]{
         progress->close();
+        // 导入完成后立即保存图书数据到文件，确保数据同步
+        QString bookDataPath = QCoreApplication::applicationDirPath() + "/books.json";
+        if (bookManager.saveToFile(bookDataPath)) {
+            qDebug() << "导入后图书数据已保存到文件:" << bookDataPath;
+        } else {
+            qDebug() << "导入后图书数据保存失败:" << bookDataPath;
+        }
         refreshBookTable(table);
         QMessageBox::information(this, "导入完成", QString("成功导入%1条书籍信息。\n(如有重复或异常已自动跳过)").arg(watcher->result()));
         watcher->deleteLater();
@@ -1879,11 +1942,22 @@ void Widget::handleBorrowPageBorrowClicked(const QString &isbn, const QString &t
         QMessageBox::warning(this, "未登录", "请先登录后再借阅图书。");
         return;
     }
-    bool success = borrowManager->borrowBook(isbn.toStdString(), currentUser.toStdString());
-    if (success) {
-        QMessageBox::information(this, "借阅成功", QString("成功借阅《%1》！").arg(title));
-    } else {
-        QMessageBox::warning(this, "借阅失败", "借阅失败，可能已借阅或库存不足。");
+    try {
+        bool success = borrowManager->borrowBook(isbn.toStdString(), currentUser.toStdString());
+        if (success) {
+            // 立即保存借阅记录到文件，确保数据同步
+            QString borrowDataPath = QCoreApplication::applicationDirPath() + "/borrow_records.json";
+            if (borrowManager->saveToFile(borrowDataPath)) {
+                qDebug() << "借阅记录已保存到文件:" << borrowDataPath;
+            } else {
+                qDebug() << "借阅记录保存失败:" << borrowDataPath;
+            }
+            QMessageBox::information(this, "借阅成功", QString("成功借阅《%1》！").arg(title));
+        } else {
+            QMessageBox::warning(this, "借阅失败", "借阅失败，可能已借阅或库存不足。");
+        }
+    } catch (const std::exception &e) {
+        QMessageBox::warning(this, "借阅失败", e.what());
     }
 }
 
@@ -1942,6 +2016,26 @@ void Widget::loadBookAndBorrowData()
         }
     } catch (const std::exception &e) {
         qDebug() << "加载图书和借阅记录数据失败:" << e.what();
+    }
+}
+
+// 从文件刷新借阅记录数据
+void Widget::refreshBorrowDataFromFile()
+{
+    try {
+        QString borrowDataPath = QCoreApplication::applicationDirPath() + "/borrow_records.json";
+        
+        if (QFile::exists(borrowDataPath)) {
+            if (borrowManager->loadFromFile(borrowDataPath)) {
+                qDebug() << "借阅记录数据重新加载成功:" << borrowDataPath;
+            } else {
+                qDebug() << "借阅记录数据重新加载失败:" << borrowDataPath;
+            }
+        } else {
+            qDebug() << "借阅记录数据文件不存在:" << borrowDataPath;
+        }
+    } catch (const std::exception &e) {
+        qDebug() << "重新加载借阅记录数据失败:" << e.what();
     }
 }
 
