@@ -486,11 +486,68 @@ void Widget::setupCustomUi()
     btnNext = new QPushButton("下一页", this);
     btnLast = new QPushButton("末页", this);
 
+    // 分页按钮样式，适配深浅色模式
+    static const QString PAGE_BUTTON_STYLE = R"(
+        QPushButton {
+            background: palette(button);
+            color: palette(button-text);
+            border: 1px solid #b0b0b0;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 40px;
+            min-height: 14px;
+        }
+        QPushButton:hover {
+            background: palette(highlight);
+            color: palette(highlighted-text);
+            border-color: #3498db;
+        }
+        QPushButton:pressed {
+            background: #e1e2e6;
+        }
+        QPushButton:disabled {
+            background: #f0f0f0;
+            color: #b0b0b0;
+            border-color: #e0e0e0;
+        }
+    )";
+    btnFirst->setStyleSheet(PAGE_BUTTON_STYLE);
+    btnPrev->setStyleSheet(PAGE_BUTTON_STYLE);
+    btnNext->setStyleSheet(PAGE_BUTTON_STYLE);
+    btnLast->setStyleSheet(PAGE_BUTTON_STYLE);
+
     lblPageInfo = new QLabel("第 1/1 页", this);
+    QLabel *pageSizeLabel = new QLabel("每页数量:");
+
+    QString labelStyle = "color: palette(window-text); font-size: 14px; font-weight: 500; padding: 0 6px;background: palette(base);border-radius: 6px;";
+    lblPageInfo->setStyleSheet(labelStyle);
+    pageSizeLabel->setStyleSheet(labelStyle);
 
     cmbPageSize = new QComboBox(this);
     cmbPageSize->addItems({"10", "20", "50", "100"});
     cmbPageSize->setCurrentText(QString::number(DEFAULT_PAGE_SIZE));
+    QString comboStyle = R"(
+        QComboBox {
+            color: palette(window-text);
+            background: palette(base);
+            border: 1px solid palette(mid);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 40px;
+            min-height: 14px;
+        }
+        QComboBox QAbstractItemView {
+            color: palette(window-text);
+            background: palette(base);
+            selection-background-color: palette(highlight);
+            selection-color: palette(highlighted-text);
+        }
+    )";
+    cmbPageSize->setStyleSheet(comboStyle);
 
     // 按钮布局
     QHBoxLayout *pageBtnLayout = new QHBoxLayout();
@@ -500,7 +557,7 @@ void Widget::setupCustomUi()
     pageBtnLayout->addWidget(btnNext);
     pageBtnLayout->addWidget(btnLast);
     pageBtnLayout->addStretch();
-    pageBtnLayout->addWidget(new QLabel("每页数量:"));
+    pageBtnLayout->addWidget(pageSizeLabel);
     pageBtnLayout->addWidget(cmbPageSize);
     borrowPage_layout->addLayout(pageBtnLayout);
 
