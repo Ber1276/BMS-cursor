@@ -99,6 +99,8 @@ private:
     void updateLoginStatus();
     void saveUserData();
     void loadUserData();
+    void saveBookAndBorrowData();
+    void loadBookAndBorrowData();
     
     // 权限检查方法
     bool hasPermission(Role requiredRole);

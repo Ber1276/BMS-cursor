@@ -6,6 +6,9 @@
 #include "Book.h"
 #include "User.h"
 
+// 前向声明
+class QJsonObject;
+
 class BorrowRecord {
 private:
     int id;
@@ -44,6 +47,10 @@ public:
     void setDueDate(time_t date);
     void setReturnDate(time_t date);
     void setIsReturned(bool returned);
+    
+    // 数据持久化方法
+    QJsonObject toJson() const;
+    void fromJson(const QJsonObject& json);
 };
 
 #endif 

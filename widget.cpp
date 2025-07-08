@@ -59,6 +59,9 @@ Widget::Widget(QWidget *parent)
     // 加载用户数据
     loadUserData();
     
+    // 加载图书和借阅记录数据
+    loadBookAndBorrowData();
+    
     // 设置UI
     setupCustomUi();
     
@@ -70,6 +73,9 @@ Widget::~Widget()
 {
     // 保存用户数据
     saveUserData();
+    
+    // 保存图书和借阅记录数据
+    saveBookAndBorrowData();
     
     delete borrowManager;
     delete permissionManager;
@@ -1878,6 +1884,64 @@ void Widget::handleBorrowPageBorrowClicked(const QString &isbn, const QString &t
         QMessageBox::information(this, "借阅成功", QString("成功借阅《%1》！").arg(title));
     } else {
         QMessageBox::warning(this, "借阅失败", "借阅失败，可能已借阅或库存不足。");
+    }
+}
+
+// 保存图书和借阅记录数据
+void Widget::saveBookAndBorrowData()
+{
+    try {
+        QString bookDataPath = QCoreApplication::applicationDirPath() + "/books.json";
+        QString borrowDataPath = QCoreApplication::applicationDirPath() + "/borrow_records.json";
+        
+        // 保存图书数据
+        if (bookManager.saveToFile(bookDataPath)) {
+            qDebug() << "图书数据保存成功:" << bookDataPath;
+        } else {
+            qDebug() << "图书数据保存失败:" << bookDataPath;
+        }
+        
+        // 保存借阅记录数据
+        if (borrowManager->saveToFile(borrowDataPath)) {
+            qDebug() << "借阅记录数据保存成功:" << borrowDataPath;
+        } else {
+            qDebug() << "借阅记录数据保存失败:" << borrowDataPath;
+        }
+    } catch (const std::exception &e) {
+        qDebug() << "保存图书和借阅记录数据失败:" << e.what();
+    }
+}
+
+// 加载图书和借阅记录数据
+void Widget::loadBookAndBorrowData()
+{
+    try {
+        QString bookDataPath = QCoreApplication::applicationDirPath() + "/books.json";
+        QString borrowDataPath = QCoreApplication::applicationDirPath() + "/borrow_records.json";
+        
+        // 加载图书数据
+        if (QFile::exists(bookDataPath)) {
+            if (bookManager.loadFromFile(bookDataPath)) {
+                qDebug() << "图书数据加载成功:" << bookDataPath;
+            } else {
+                qDebug() << "图书数据加载失败:" << bookDataPath;
+            }
+        } else {
+            qDebug() << "图书数据文件不存在，将创建新文件:" << bookDataPath;
+        }
+        
+        // 加载借阅记录数据
+        if (QFile::exists(borrowDataPath)) {
+            if (borrowManager->loadFromFile(borrowDataPath)) {
+                qDebug() << "借阅记录数据加载成功:" << borrowDataPath;
+            } else {
+                qDebug() << "借阅记录数据加载失败:" << borrowDataPath;
+            }
+        } else {
+            qDebug() << "借阅记录数据文件不存在，将创建新文件:" << borrowDataPath;
+        }
+    } catch (const std::exception &e) {
+        qDebug() << "加载图书和借阅记录数据失败:" << e.what();
     }
 }
 

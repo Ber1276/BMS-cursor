@@ -3,6 +3,10 @@
 #include <iomanip>
 #include <chrono>
 #include <ctime>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QString>
+#include <QVariant>
 
 // 静态成员初始化
 int BorrowRecord::nextId = 1;
@@ -120,4 +124,45 @@ void BorrowRecord::setReturnDate(time_t date) {
 
 void BorrowRecord::setIsReturned(bool returned) {
     isReturned = returned;
+}
+
+// 数据持久化方法实现
+QJsonObject BorrowRecord::toJson() const {
+    QJsonObject json;
+    json["id"] = id;
+    json["bookIsbn"] = QString::fromStdString(bookIsbn);
+    json["username"] = QString::fromStdString(username);
+    json["borrowDate"] = static_cast<qint64>(borrowDate);
+    json["dueDate"] = static_cast<qint64>(dueDate);
+    json["returnDate"] = static_cast<qint64>(returnDate);
+    json["isReturned"] = isReturned;
+    return json;
+}
+
+void BorrowRecord::fromJson(const QJsonObject& json) {
+    if (json.contains("id")) {
+        id = json["id"].toInt();
+        // 更新nextId以确保ID唯一性
+        if (id >= nextId) {
+            nextId = id + 1;
+        }
+    }
+    if (json.contains("bookIsbn")) {
+        bookIsbn = json["bookIsbn"].toString().toStdString();
+    }
+    if (json.contains("username")) {
+        username = json["username"].toString().toStdString();
+    }
+    if (json.contains("borrowDate")) {
+        borrowDate = static_cast<time_t>(json["borrowDate"].toVariant().toLongLong());
+    }
+    if (json.contains("dueDate")) {
+        dueDate = static_cast<time_t>(json["dueDate"].toVariant().toLongLong());
+    }
+    if (json.contains("returnDate")) {
+        returnDate = static_cast<time_t>(json["returnDate"].toVariant().toLongLong());
+    }
+    if (json.contains("isReturned")) {
+        isReturned = json["isReturned"].toBool();
+    }
 }
