@@ -67,8 +67,8 @@ private slots:
     void onEditUser(class QTableWidget *table);
     void onDeleteUser(class QTableWidget *table);
     void onImportBooks(QTableWidget *table);
-    void refreshBorrowPageTable(class QTableWidget *table);
-    void refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const QString &keyword);
+    void refreshBorrowPageTable(class QTableWidget *table, int pageNum, int pageSize);
+    void refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const QString &keyword, int pageNum, int pageSize);
 
 private:
     Ui::Widget *ui;
@@ -115,6 +115,18 @@ private:
     static const int BORROW_PAGE = 1;
     static const int USER_PAGE = 2;
     static const int BORROW_BOOK_PAGE = 3;
+
+    //分页控件
+    QPushButton *btnFirst, *btnPrev, *btnNext, *btnLast;
+    QLabel *lblPageInfo;
+    QComboBox *cmbPageSize;
+
+    int currentBorrowPage = 1;
+    int totalBorrowPage = 1;
+    const int DEFAULT_PAGE_SIZE = 20;
+
+    //更新页码信息
+    void updatePageInfo(int pageNum, int pageSize, int totalResults);
 
     void handleBorrowPageBorrowClicked(const QString &isbn, const QString &title);
 };
