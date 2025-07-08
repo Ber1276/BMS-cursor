@@ -6,6 +6,12 @@
 #include <iomanip>
 #include <iostream>
 #include <cstring>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
+#include <QDebug>
 
 void BookManager::addBook(const Book& book) {
     books.push_back(book);
@@ -284,4 +290,85 @@ void BookManager::addBooks(const MyVector<Book>& booksVec) {
             // 忽略重复或异常
         }
     }
+}
+
+// 数据持久化方法实现
+bool BookManager::saveToFile(const QString& filename) const {
+    QFile file(filename);
+    if (!file.open(QIODevice::WriteOnly)) {
+        qDebug() << "无法打开文件进行写入:" << filename;
+        return false;
+    }
+    
+    QJsonArray booksArray;
+    for (size_t i = 0; i < books.getSize(); ++i) {
+        booksArray.append(books[i].toJson());
+    }
+    
+    QJsonObject rootObject;
+    rootObject["books"] = booksArray;
+    rootObject["count"] = static_cast<int>(books.getSize());
+    
+    QJsonDocument doc(rootObject);
+    QByteArray jsonData = doc.toJson(QJsonDocument::Indented);
+    
+    qint64 bytesWritten = file.write(jsonData);
+    file.close();
+    
+    if (bytesWritten == -1) {
+        qDebug() << "写入文件失败:" << filename;
+        return false;
+    }
+    
+    qDebug() << "成功保存" << books.getSize() << "本图书到文件:" << filename;
+    return true;
+}
+
+bool BookManager::loadFromFile(const QString& filename) {
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qDebug() << "无法打开文件进行读取:" << filename;
+        return false;
+    }
+    
+    QByteArray jsonData = file.readAll();
+    file.close();
+    
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(jsonData, &parseError);
+    
+    if (parseError.error != QJsonParseError::NoError) {
+        qDebug() << "JSON解析错误:" << parseError.errorString();
+        return false;
+    }
+    
+    QJsonObject rootObject = doc.object();
+    if (!rootObject.contains("books")) {
+        qDebug() << "文件格式错误: 缺少books字段";
+        return false;
+    }
+    
+    QJsonArray booksArray = rootObject["books"].toArray();
+    
+    // 清空现有数据
+    books = MyVector<Book>();
+    
+    // 加载图书数据
+    int successCount = 0;
+    for (const QJsonValue& value : booksArray) {
+        if (value.isObject()) {
+            Book book;
+            book.fromJson(value.toObject());
+            try {
+                addBook(book);
+                successCount++;
+            } catch (const std::exception& e) {
+                qDebug() << "加载图书失败:" << e.what();
+                continue;
+            }
+        }
+    }
+    
+    qDebug() << "成功加载" << successCount << "本图书从文件:" << filename;
+    return successCount > 0;
 } 

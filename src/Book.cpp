@@ -1,4 +1,7 @@
 #include "../include/Book.h"
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QString>
 
 Book::Book() : isbn(""), title(""), author(""), publisher(""), publishYear(0) {}
 
@@ -61,4 +64,33 @@ void Book::setPublishYear(int year) {
         throw std::invalid_argument("出版年份无效");
     }
     this->publishYear = year;
+}
+
+// 数据持久化方法实现
+QJsonObject Book::toJson() const {
+    QJsonObject json;
+    json["isbn"] = QString::fromStdString(isbn);
+    json["title"] = QString::fromStdString(title);
+    json["author"] = QString::fromStdString(author);
+    json["publisher"] = QString::fromStdString(publisher);
+    json["publishYear"] = publishYear;
+    return json;
+}
+
+void Book::fromJson(const QJsonObject& json) {
+    if (json.contains("isbn")) {
+        isbn = json["isbn"].toString().toStdString();
+    }
+    if (json.contains("title")) {
+        title = json["title"].toString().toStdString();
+    }
+    if (json.contains("author")) {
+        author = json["author"].toString().toStdString();
+    }
+    if (json.contains("publisher")) {
+        publisher = json["publisher"].toString().toStdString();
+    }
+    if (json.contains("publishYear")) {
+        publishYear = json["publishYear"].toInt();
+    }
 } 

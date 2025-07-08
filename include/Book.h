@@ -4,6 +4,9 @@
 #include <string>
 #include <stdexcept>
 
+// 前向声明
+class QJsonObject;
+
 class Book {
 private:
     std::string isbn;
@@ -29,6 +32,10 @@ public:
     void setAuthor(const std::string& author);
     void setPublisher(const std::string& publisher);
     void setPublishYear(int year);
+    
+    // 数据持久化方法
+    QJsonObject toJson() const;
+    void fromJson(const QJsonObject& json);
 };
 
 #endif // BOOK_H 

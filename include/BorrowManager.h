@@ -6,6 +6,9 @@
 #include "BookManager.h"
 #include "User.h"
 
+// 前向声明
+class QString;
+
 class BorrowManager {
 private:
     MyVector<BorrowRecord> records;
@@ -28,6 +31,10 @@ public:
     const MyVector<BorrowRecord>& getAllBorrowRecords() const { return records; }
     size_t getBorrowCount(const std::string& username) const;
     size_t getOverdueCount(const std::string& username) const;
+    
+    // 数据持久化方法
+    bool saveToFile(const QString& filename) const;
+    bool loadFromFile(const QString& filename);
 };
 
 #endif 

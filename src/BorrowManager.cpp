@@ -1,6 +1,12 @@
 #include "../include/BorrowManager.h"
 #include <stdexcept>
 #include <ctime>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
+#include <QDebug>
 
 BorrowManager::BorrowManager(BookManager* bookManager, UserManager* userManager)
     : bookManager(bookManager), userManager(userManager) {}
@@ -135,4 +141,85 @@ size_t BorrowManager::getOverdueCount(const std::string& username) const {
         }
     }
     return count;
+}
+
+// 数据持久化方法实现
+bool BorrowManager::saveToFile(const QString& filename) const {
+    QFile file(filename);
+    if (!file.open(QIODevice::WriteOnly)) {
+        qDebug() << "无法打开文件进行写入:" << filename;
+        return false;
+    }
+    
+    QJsonArray recordsArray;
+    for (size_t i = 0; i < records.getSize(); ++i) {
+        recordsArray.append(records[i].toJson());
+    }
+    
+    QJsonObject rootObject;
+    rootObject["records"] = recordsArray;
+    rootObject["count"] = static_cast<int>(records.getSize());
+    
+    QJsonDocument doc(rootObject);
+    QByteArray jsonData = doc.toJson(QJsonDocument::Indented);
+    
+    qint64 bytesWritten = file.write(jsonData);
+    file.close();
+    
+    if (bytesWritten == -1) {
+        qDebug() << "写入文件失败:" << filename;
+        return false;
+    }
+    
+    qDebug() << "成功保存" << records.getSize() << "条借阅记录到文件:" << filename;
+    return true;
+}
+
+bool BorrowManager::loadFromFile(const QString& filename) {
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qDebug() << "无法打开文件进行读取:" << filename;
+        return false;
+    }
+    
+    QByteArray jsonData = file.readAll();
+    file.close();
+    
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(jsonData, &parseError);
+    
+    if (parseError.error != QJsonParseError::NoError) {
+        qDebug() << "JSON解析错误:" << parseError.errorString();
+        return false;
+    }
+    
+    QJsonObject rootObject = doc.object();
+    if (!rootObject.contains("records")) {
+        qDebug() << "文件格式错误: 缺少records字段";
+        return false;
+    }
+    
+    QJsonArray recordsArray = rootObject["records"].toArray();
+    
+    // 清空现有数据
+    records = MyVector<BorrowRecord>();
+    
+    // 加载借阅记录数据
+    int successCount = 0;
+    for (const QJsonValue& value : recordsArray) {
+        if (value.isObject()) {
+            BorrowRecord record;
+            record.fromJson(value.toObject());
+            try {
+                records.add(record);
+                successCount++;
+            } catch (const std::exception& e) {
+                qDebug() << "加载借阅记录失败:" << e.what();
+                continue;
+            }
+        }
+    }
+    
+    qDebug() << "成功加载" << successCount << "条借阅记录从文件:" << filename;
+    return successCount > 0;
 } 

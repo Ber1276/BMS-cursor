@@ -6,6 +6,9 @@
 #include <algorithm>
 #include "Book.h"
 
+// 前向声明
+class QString;
+
 enum class SortBy {
     TITLE,
     AUTHOR,
@@ -42,6 +45,10 @@ public:
     bool exportBooksToFile(const std::string& filename) const;
     static bool parseBookLine(const std::string& line, Book& book);
     void addBooks(const MyVector<Book>& books);
+    
+    // 数据持久化方法
+    bool saveToFile(const QString& filename) const;
+    bool loadFromFile(const QString& filename);
 };
 
 #endif // BOOK_MANAGER_H 
