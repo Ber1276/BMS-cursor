@@ -44,6 +44,10 @@ Widget::Widget(QWidget *parent)
     , btnBorrow(nullptr)
     , btnUser(nullptr)
     , btnBorrowBookPage(nullptr)
+    , borrowPage_widget(nullptr)
+    , borrowPage_searchEdit(nullptr)
+    , borrowPage_searchBtn(nullptr)
+    , borrowPage_table(nullptr)
 {
     ui->setupUi(this);
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
@@ -283,23 +287,32 @@ QPushButton:pressed {
     userLayout->addWidget(userTable);
     mainStack->addWidget(userPage);
 
-
     // 借阅图书页
-    QWidget *borrowBookPage = new QWidget(this);
-    QVBoxLayout *borrowBookLayout = new QVBoxLayout(borrowBookPage);
-    QTableWidget *borrowBookTable = new QTableWidget(borrowBookPage);
-    borrowBookTable->setColumnCount(5);
-    QStringList borrowBookHeaders;
-    borrowBookHeaders << "ISBN" << "书名" << "作者" << "出版社" << "出版年份";
-    borrowBookTable->setHorizontalHeaderLabels(borrowBookHeaders);
-    borrowBookTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    borrowBookTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    borrowBookTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    borrowBookTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    borrowPage_widget = new QWidget(this);
+    QVBoxLayout *borrowPage_layout = new QVBoxLayout(borrowPage_widget);
 
-    borrowBookLayout->addWidget(borrowBookTable);
-    mainStack->addWidget(borrowBookPage);
-    
+    // 搜索区
+    QHBoxLayout *borrowPage_searchLayout = new QHBoxLayout();
+    borrowPage_searchEdit = new QLineEdit(borrowPage_widget);
+    borrowPage_searchEdit->setPlaceholderText("请输入书名、作者或ISBN搜索");
+    borrowPage_searchBtn = new QPushButton("搜索", borrowPage_widget);
+    borrowPage_searchLayout->addWidget(borrowPage_searchEdit);
+    borrowPage_searchLayout->addWidget(borrowPage_searchBtn);
+    borrowPage_layout->addLayout(borrowPage_searchLayout);
+
+    // 表格
+    borrowPage_table = new QTableWidget(borrowPage_widget);
+    borrowPage_table->setColumnCount(6);
+    QStringList borrowPage_headers;
+    borrowPage_headers << "ISBN" << "书名" << "作者" << "出版社" << "出版年份" << "操作";
+    borrowPage_table->setHorizontalHeaderLabels(borrowPage_headers);
+    borrowPage_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    borrowPage_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    borrowPage_table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    borrowPage_table->setSelectionMode(QAbstractItemView::SingleSelection);
+    borrowPage_layout->addWidget(borrowPage_table);
+
+    mainStack->addWidget(borrowPage_widget);
     
     // 主内容区背景色
     mainStack->setStyleSheet("background:#f5f6fa; border-top-right-radius:16px; border-bottom-right-radius:16px;");
@@ -308,7 +321,7 @@ QPushButton:pressed {
     bookPage->setStyleSheet("background:#f5f6fa;");
     borrowPage->setStyleSheet("background:#f5f6fa;");
     userPage->setStyleSheet("background:#f5f6fa;");
-    borrowBookPage->setStyleSheet("background:#f5f6fa;");
+    borrowPage_widget->setStyleSheet("background:#f5f6fa;");
     
     // 总体布局
     QHBoxLayout *mainLayout = new QHBoxLayout();
@@ -329,7 +342,7 @@ QPushButton:pressed {
     connect(btnBook, &QPushButton::clicked, this ,[this](){ switchToPage(BOOK_PAGE); });
     connect(btnBorrow, &QPushButton::clicked, this,[this]{ checkPermissionAndNavigate(BORROW_PAGE, USER); });
     connect(btnUser, &QPushButton::clicked, this,[this]{ checkPermissionAndNavigate(USER_PAGE, ADMIN); });
-    connect(btnBorrowBookPage, &QPushButton::clicked, this,[this]{ switchToBorrowBookPage(); });
+    connect(btnBorrowBookPage, &QPushButton::clicked, this,[this]{ switchToPage(BORROW_BOOK_PAGE); });
     
     // 图书管理功能信号槽 - 增删改操作需要管理员权限
     connect(btnAdd, &QPushButton::clicked, this,[this, bookTable]{
@@ -465,7 +478,7 @@ QPushButton:pressed {
     bookTable->setStyleSheet(tableStyle);
     borrowTable->setStyleSheet(tableStyle);
     userTable->setStyleSheet(tableStyle);
-    borrowBookTable->setStyleSheet(tableStyle);
+    borrowPage_table->setStyleSheet(tableStyle);
 
     QString navBtnStyle = R"(
     QPushButton {
@@ -491,6 +504,14 @@ QPushButton:pressed {
     
     // 更新登录状态显示
     updateLoginStatus();
+
+    // 信号槽
+    connect(borrowPage_searchBtn, &QPushButton::clicked, this, [this](){
+        refreshBorrowPageTable(borrowPage_searchEdit->text().trimmed());
+    });
+    connect(borrowPage_searchEdit, &QLineEdit::returnPressed, this, [this](){
+        refreshBorrowPageTable(borrowPage_searchEdit->text().trimmed());
+    });
 }
 
 // 全局登录对话框
@@ -777,11 +798,6 @@ void Widget::switchToPage(int pageIndex)
     }
 }
 
-//切换到借阅图书页
-void Widget::switchToBorrowBookPage()
-{
-    mainStack->setCurrentIndex(BORROW_BOOK_PAGE);
-}
 
 // 权限检查
 bool Widget::hasPermission(Role requiredRole)
@@ -1437,5 +1453,56 @@ void Widget::onImportBooks(QTableWidget *table)
 
     watcher->setFuture(QtConcurrent::run(importTask));
     progress->exec();
+}
+
+void Widget::refreshBorrowPageTable(const QString &keyword)
+{
+    borrowPage_table->setRowCount(0);
+    const auto &books = bookManager.getAllBooks();
+    int row = 0;
+    for (size_t i = 0; i < books.getSize(); ++i) {
+        const Book &book = books[i];
+        QString isbn = QString::fromStdString(book.getIsbn());
+        QString title = QString::fromStdString(book.getTitle());
+        QString author = QString::fromStdString(book.getAuthor());
+        QString publisher = QString::fromStdString(book.getPublisher());
+        QString year = QString::number(book.getPublishYear());
+
+        // 关键字过滤
+        if (!keyword.isEmpty() &&
+            !isbn.contains(keyword, Qt::CaseInsensitive) &&
+            !title.contains(keyword, Qt::CaseInsensitive) &&
+            !author.contains(keyword, Qt::CaseInsensitive)) {
+            continue;
+        }
+
+        borrowPage_table->insertRow(row);
+        borrowPage_table->setItem(row, 0, new QTableWidgetItem(isbn));
+        borrowPage_table->setItem(row, 1, new QTableWidgetItem(title));
+        borrowPage_table->setItem(row, 2, new QTableWidgetItem(author));
+        borrowPage_table->setItem(row, 3, new QTableWidgetItem(publisher));
+        borrowPage_table->setItem(row, 4, new QTableWidgetItem(year));
+        // 借阅按钮
+        QPushButton *btn = new QPushButton("借阅");
+        borrowPage_table->setCellWidget(row, 5, btn);
+        connect(btn, &QPushButton::clicked, this, [this, isbn, title](){
+            handleBorrowPageBorrowClicked(isbn, title);
+        });
+        ++row;
+    }
+}
+
+void Widget::handleBorrowPageBorrowClicked(const QString &isbn, const QString &title)
+{
+    if (!isLoggedIn) {
+        QMessageBox::warning(this, "未登录", "请先登录后再借阅图书。");
+        return;
+    }
+    bool success = borrowManager->borrowBook(isbn.toStdString(), currentUser.toStdString());
+    if (success) {
+        QMessageBox::information(this, "借阅成功", QString("成功借阅《%1》！").arg(title));
+    } else {
+        QMessageBox::warning(this, "借阅失败", "借阅失败，可能已借阅或库存不足。");
+    }
 }
 

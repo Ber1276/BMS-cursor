@@ -100,7 +100,6 @@ private:
     void logoutUser();
     bool checkPermissionAndNavigate(int targetPage, Role requiredRole = USER);
     void switchToPage(int pageIndex);
-    void switchToBorrowBookPage();
     void updateLoginStatus();
     void saveUserData();
     void loadUserData();
@@ -115,5 +114,13 @@ private:
     static const int BORROW_PAGE = 1;
     static const int USER_PAGE = 2;
     static const int BORROW_BOOK_PAGE = 3;
+
+    QWidget *borrowPage_widget = nullptr;
+    QTableWidget *borrowPage_table = nullptr;
+    QLineEdit *borrowPage_searchEdit = nullptr;
+    QPushButton *borrowPage_searchBtn = nullptr;
+
+    void refreshBorrowPageTable(const QString &keyword = QString());
+    void handleBorrowPageBorrowClicked(const QString &isbn, const QString &title);
 };
 #endif // WIDGET_H
