@@ -65,6 +65,31 @@ public:
             rebuildBookHashTable();
         }
     }
+    void push_back_no_rebuild(const T& value) {
+        if (size == capacity) {
+            T* newData = new T[capacity * 2];
+            for (size_t i = 0; i < size; ++i) {
+                newData[i] = data[i];
+            }
+            delete[] data;
+            data = newData;
+            capacity *= 2;
+            size_t newHashTableSize = capacity * 2;
+            size_t* newHashValues = new size_t[newHashTableSize];
+            size_t* newIndices = new size_t[newHashTableSize];
+            for (size_t i = 0; i < newHashTableSize; ++i) {
+                newHashValues[i] = 0;
+                newIndices[i] = static_cast<size_t>(-1);
+            }
+            delete[] hashValues;
+            delete[] indices;
+            hashValues = newHashValues;
+            indices = newIndices;
+            hashTableSize = newHashTableSize;
+        }
+        data[size++] = value;
+        // 不重建哈希表
+    }
     void removeAt(size_t index) {
         if (index >= size) {
             throw std::out_of_range("Index out of range");

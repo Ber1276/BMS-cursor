@@ -1922,7 +1922,7 @@ void Widget::onImportBooks(QTableWidget *table)
             if (isbn.isEmpty() || title.isEmpty() || author.isEmpty() || publisher.isEmpty() || year == 0) continue;
             try {
                 Book book(isbn.toStdString(), title.toStdString(), author.toStdString(), publisher.toStdString(), year);
-                bookManager.addBook(book);
+                bookManager.addBookNoRebuild(book);
             } catch (...) {
                 // 重复或异常跳过
             }
@@ -1931,6 +1931,8 @@ void Widget::onImportBooks(QTableWidget *table)
                 QMetaObject::invokeMethod(progress, "setValue", Qt::QueuedConnection, Q_ARG(int, count));
             }
         }
+
+        bookManager.rebuildBookHashTable();
         QMetaObject::invokeMethod(progress, "setValue", Qt::QueuedConnection, Q_ARG(int, totalLines));
         return count;
     };

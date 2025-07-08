@@ -17,6 +17,14 @@ void BookManager::addBook(const Book& book) {
     books.push_back(book);
 }
 
+void BookManager::addBookNoRebuild(const Book& book) {
+    books.push_back_no_rebuild(book);
+}
+
+void BookManager::rebuildBookHashTable() {
+    books.rebuildBookHashTable();
+}
+
 bool BookManager::removeBook(const std::string& isbn) {
     int index = books.hashFindByIsbn(isbn);
     if (index >= 0) {
@@ -354,21 +362,18 @@ bool BookManager::loadFromFile(const QString& filename) {
     books = MyVector<Book>();
     
     // 加载图书数据
+    MyVector<Book> tempBooks;
     int successCount = 0;
     for (const QJsonValue& value : booksArray) {
         if (value.isObject()) {
             Book book;
             book.fromJson(value.toObject());
-            try {
-                addBook(book);
-                successCount++;
-            } catch (const std::exception& e) {
-                qDebug() << "加载图书失败:" << e.what();
-                continue;
-            }
+            tempBooks.push_back_no_rebuild(book);
+            successCount++;
         }
     }
-    
+    tempBooks.rebuildBookHashTable();
+    books = tempBooks; // 只重建一次哈希表
     qDebug() << "成功加载" << successCount << "本图书从文件:" << filename;
     return successCount > 0;
 } 

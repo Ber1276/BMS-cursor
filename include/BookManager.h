@@ -28,6 +28,8 @@ private:
     //bool parseBookLine(const std::string& line, Book& book);
 public:
     void addBook(const Book &book);
+    void addBookNoRebuild(const Book &book);
+    void rebuildBookHashTable();
     bool updateBook(const std::string& isbn, const Book& updatedBook);
     bool updateBookField(const std::string& isbn, const std::string& field, const std::string& newValue);
     bool removeBook(const std::string &isbn);
