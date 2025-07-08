@@ -205,15 +205,96 @@ QPushButton:pressed {
     
     // 操作按钮
     QHBoxLayout *bookSearchLayout = new QHBoxLayout();
+    bookSearchLayout->setSpacing(10);
+    bookSearchLayout->setContentsMargins(15, 15, 15, 15);
+    
     QComboBox *bookFieldCombo = new QComboBox(bookPage);
     bookFieldCombo->addItem("ISBN");
     bookFieldCombo->addItem("书名");
     bookFieldCombo->addItem("作者");
     bookFieldCombo->addItem("出版社");
     bookFieldCombo->addItem("出版年份");
+    bookFieldCombo->setFixedWidth(120);
+    
     QLineEdit *bookSearchEdit = new QLineEdit(bookPage);
     bookSearchEdit->setPlaceholderText("输入关键字搜索");
+    bookSearchEdit->setMinimumWidth(200);
+    
     QPushButton *btnSearchBook = new QPushButton("搜索", bookPage);
+    btnSearchBook->setFixedWidth(80);
+    
+    // 设置搜索框样式
+    QString searchStyle = R"(
+        QComboBox {
+            background-color: #ffffff;
+            border: 2px solid #e1e2e6;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        QComboBox:focus {
+            border-color: #3498db;
+            background-color: #ffffff;
+        }
+        QComboBox::drop-down {
+            border: none;
+            width: 20px;
+        }
+        QComboBox::down-arrow {
+            image: none;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #7f8c8d;
+            margin-right: 8px;
+        }
+        QComboBox QAbstractItemView {
+            background-color: #ffffff;
+            border: 2px solid #e1e2e6;
+            border-radius: 8px;
+            selection-background-color: #3498db;
+            color: #2c3e50;
+            padding: 8px;
+        }
+        QLineEdit {
+            background-color: #ffffff;
+            border: 2px solid #e1e2e6;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 14px;
+            color: #2c3e50;
+            selection-background-color: #3498db;
+        }
+        QLineEdit:focus {
+            border-color: #3498db;
+            background-color: #ffffff;
+        }
+        QLineEdit::placeholder {
+            color: #95a5a6;
+            font-style: italic;
+        }
+        QPushButton {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        QPushButton:hover {
+            background-color: #2980b9;
+        }
+        QPushButton:pressed {
+            background-color: #21618c;
+        }
+    )";
+    
+    bookFieldCombo->setStyleSheet(searchStyle);
+    bookSearchEdit->setStyleSheet(searchStyle);
+    btnSearchBook->setStyleSheet(searchStyle);
+    
     bookSearchLayout->addWidget(bookFieldCombo);
     bookSearchLayout->addWidget(bookSearchEdit);
     bookSearchLayout->addWidget(btnSearchBook);
@@ -286,9 +367,55 @@ QPushButton:pressed {
     QPushButton *btnDeleteUser = new QPushButton("删除用户", userPage);
     QPushButton *btnRefreshUser = new QPushButton("刷新用户", userPage);
     QHBoxLayout *userSearchLayout = new QHBoxLayout();
+    userSearchLayout->setSpacing(10);
+    userSearchLayout->setContentsMargins(15, 15, 15, 15);
+    
     QLineEdit *userSearchEdit = new QLineEdit(userPage);
     userSearchEdit->setPlaceholderText("输入用户名关键字搜索");
+    userSearchEdit->setMinimumWidth(200);
+    
     QPushButton *btnSearchUser = new QPushButton("搜索", userPage);
+    btnSearchUser->setFixedWidth(80);
+    
+    // 设置搜索框样式（与图书管理页面保持一致）
+    QString userSearchStyle = R"(
+        QLineEdit {
+            background-color: #ffffff;
+            border: 2px solid #e1e2e6;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 14px;
+            color: #2c3e50;
+            selection-background-color: #3498db;
+        }
+        QLineEdit:focus {
+            border-color: #3498db;
+            background-color: #ffffff;
+        }
+        QLineEdit::placeholder {
+            color: #95a5a6;
+            font-style: italic;
+        }
+        QPushButton {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        QPushButton:hover {
+            background-color: #2980b9;
+        }
+        QPushButton:pressed {
+            background-color: #21618c;
+        }
+    )";
+    
+    userSearchEdit->setStyleSheet(userSearchStyle);
+    btnSearchUser->setStyleSheet(userSearchStyle);
+    
     userSearchLayout->addWidget(userSearchEdit);
     userSearchLayout->addWidget(btnSearchUser);
     userSearchLayout->addStretch();
@@ -308,9 +435,55 @@ QPushButton:pressed {
 
     // 搜索区
     QHBoxLayout *borrowPage_searchLayout = new QHBoxLayout();
+    borrowPage_searchLayout->setSpacing(10);
+    borrowPage_searchLayout->setContentsMargins(15, 15, 15, 15);
+    
     borrowPage_searchEdit = new QLineEdit(borrowPage_widget);
     borrowPage_searchEdit->setPlaceholderText("请输入书名、作者或ISBN搜索");
+    borrowPage_searchEdit->setMinimumWidth(200);
+    
     borrowPage_searchBtn = new QPushButton("搜索", borrowPage_widget);
+    borrowPage_searchBtn->setFixedWidth(80);
+    
+    // 设置搜索框样式（与其他页面保持一致）
+    QString borrowPageSearchStyle = R"(
+        QLineEdit {
+            background-color: #ffffff;
+            border: 2px solid #e1e2e6;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 14px;
+            color: #2c3e50;
+            selection-background-color: #3498db;
+        }
+        QLineEdit:focus {
+            border-color: #3498db;
+            background-color: #ffffff;
+        }
+        QLineEdit::placeholder {
+            color: #95a5a6;
+            font-style: italic;
+        }
+        QPushButton {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        QPushButton:hover {
+            background-color: #2980b9;
+        }
+        QPushButton:pressed {
+            background-color: #21618c;
+        }
+    )";
+    
+    borrowPage_searchEdit->setStyleSheet(borrowPageSearchStyle);
+    borrowPage_searchBtn->setStyleSheet(borrowPageSearchStyle);
+    
     borrowPage_searchLayout->addWidget(borrowPage_searchEdit);
     borrowPage_searchLayout->addWidget(borrowPage_searchBtn);
     borrowPage_layout->addLayout(borrowPage_searchLayout);
@@ -546,20 +719,87 @@ bool Widget::showGlobalLoginDialog()
     
     QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
     
+    // 设置对话框整体样式
+    dialog.setStyleSheet(R"(
+        QDialog {
+            background-color: #ffffff;
+            color: #2c3e50;
+        }
+        QLabel {
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        QLineEdit {
+            background-color: #ffffff;
+            border: 2px solid #bdc3c7;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: #2c3e50;
+            selection-background-color: #3498db;
+        }
+        QLineEdit:focus {
+            border-color: #3498db;
+            background-color: #ffffff;
+        }
+        QLineEdit::placeholder {
+            color: #95a5a6;
+        }
+        QComboBox {
+            background-color: #ffffff;
+            border: 2px solid #bdc3c7;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: #2c3e50;
+            min-width: 120px;
+        }
+        QComboBox:focus {
+            border-color: #3498db;
+        }
+        QComboBox::drop-down {
+            border: none;
+            width: 20px;
+        }
+        QComboBox::down-arrow {
+            image: none;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #7f8c8d;
+            margin-right: 8px;
+        }
+        QComboBox QAbstractItemView {
+            background-color: #ffffff;
+            border: 2px solid #bdc3c7;
+            border-radius: 6px;
+            selection-background-color: #3498db;
+            color: #2c3e50;
+        }
+    )");
+    
     // 标题
     QLabel *titleLabel = new QLabel("请登录以继续操作", &dialog);
     titleLabel->setAlignment(Qt::AlignCenter);
-    titleLabel->setStyleSheet("font-size: 16px; font-weight: bold; color: #333; margin: 10px;");
+    titleLabel->setStyleSheet("font-size: 16px; font-weight: bold; color: #2c3e50; margin: 15px;");
     mainLayout->addWidget(titleLabel);
     
     // 表单
     QFormLayout *formLayout = new QFormLayout();
+    formLayout->setSpacing(12);
+    formLayout->setLabelAlignment(Qt::AlignRight);
+    
     QLineEdit *usernameEdit = new QLineEdit(&dialog);
     QLineEdit *passwordEdit = new QLineEdit(&dialog);
     passwordEdit->setEchoMode(QLineEdit::Password);
     
-    formLayout->addRow("用户名:", usernameEdit);
-    formLayout->addRow("密码:", passwordEdit);
+    // 设置标签样式
+    QLabel *usernameLabel = new QLabel("用户名:", &dialog);
+    QLabel *passwordLabel = new QLabel("密码:", &dialog);
+    usernameLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
+    passwordLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
+    
+    formLayout->addRow(usernameLabel, usernameEdit);
+    formLayout->addRow(passwordLabel, passwordEdit);
     mainLayout->addLayout(formLayout);
     
     // 按钮布局
@@ -652,14 +892,75 @@ bool Widget::showGlobalRegisterDialog()
     
     QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
     
+    // 设置对话框整体样式（与登录对话框保持一致）
+    dialog.setStyleSheet(R"(
+        QDialog {
+            background-color: #ffffff;
+            color: #2c3e50;
+        }
+        QLabel {
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        QLineEdit {
+            background-color: #ffffff;
+            border: 2px solid #bdc3c7;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: #2c3e50;
+            selection-background-color: #3498db;
+        }
+        QLineEdit:focus {
+            border-color: #3498db;
+            background-color: #ffffff;
+        }
+        QLineEdit::placeholder {
+            color: #95a5a6;
+        }
+        QComboBox {
+            background-color: #ffffff;
+            border: 2px solid #bdc3c7;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: #2c3e50;
+            min-width: 120px;
+        }
+        QComboBox:focus {
+            border-color: #3498db;
+        }
+        QComboBox::drop-down {
+            border: none;
+            width: 20px;
+        }
+        QComboBox::down-arrow {
+            image: none;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #7f8c8d;
+            margin-right: 8px;
+        }
+        QComboBox QAbstractItemView {
+            background-color: #ffffff;
+            border: 2px solid #bdc3c7;
+            border-radius: 6px;
+            selection-background-color: #3498db;
+            color: #2c3e50;
+        }
+    )");
+    
     // 标题
     QLabel *titleLabel = new QLabel("创建新用户账户", &dialog);
     titleLabel->setAlignment(Qt::AlignCenter);
-    titleLabel->setStyleSheet("font-size: 16px; font-weight: bold; color: #333; margin: 10px;");
+    titleLabel->setStyleSheet("font-size: 16px; font-weight: bold; color: #2c3e50; margin: 15px;");
     mainLayout->addWidget(titleLabel);
     
     // 表单
     QFormLayout *formLayout = new QFormLayout();
+    formLayout->setSpacing(12);
+    formLayout->setLabelAlignment(Qt::AlignRight);
+    
     QLineEdit *usernameEdit = new QLineEdit(&dialog);
     QLineEdit *passwordEdit = new QLineEdit(&dialog);
     QLineEdit *confirmPasswordEdit = new QLineEdit(&dialog);
@@ -670,10 +971,21 @@ bool Widget::showGlobalRegisterDialog()
     roleCombo->addItem("普通用户", USER);
     roleCombo->addItem("管理员", ADMIN);
     
-    formLayout->addRow("用户名:", usernameEdit);
-    formLayout->addRow("密码:", passwordEdit);
-    formLayout->addRow("确认密码:", confirmPasswordEdit);
-    formLayout->addRow("角色:", roleCombo);
+    // 设置标签样式
+    QLabel *usernameLabel = new QLabel("用户名:", &dialog);
+    QLabel *passwordLabel = new QLabel("密码:", &dialog);
+    QLabel *confirmPasswordLabel = new QLabel("确认密码:", &dialog);
+    QLabel *roleLabel = new QLabel("角色:", &dialog);
+    
+    usernameLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
+    passwordLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
+    confirmPasswordLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
+    roleLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 14px;");
+    
+    formLayout->addRow(usernameLabel, usernameEdit);
+    formLayout->addRow(passwordLabel, passwordEdit);
+    formLayout->addRow(confirmPasswordLabel, confirmPasswordEdit);
+    formLayout->addRow(roleLabel, roleCombo);
     mainLayout->addLayout(formLayout);
     
     // 按钮布局
