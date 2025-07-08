@@ -67,6 +67,8 @@ private slots:
     void onEditUser(class QTableWidget *table);
     void onDeleteUser(class QTableWidget *table);
     void onImportBooks(QTableWidget *table);
+    void refreshBorrowPageTable(class QTableWidget *table);
+    void refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const QString &keyword);
 
 private:
     Ui::Widget *ui;
@@ -111,12 +113,6 @@ private:
     static const int USER_PAGE = 2;
     static const int BORROW_BOOK_PAGE = 3;
 
-    QWidget *borrowPage_widget = nullptr;
-    QTableWidget *borrowPage_table = nullptr;
-    QLineEdit *borrowPage_searchEdit = nullptr;
-    QPushButton *borrowPage_searchBtn = nullptr;
-
-    void refreshBorrowPageTable(const QString &keyword = QString());
     void handleBorrowPageBorrowClicked(const QString &isbn, const QString &title);
 };
 #endif // WIDGET_H

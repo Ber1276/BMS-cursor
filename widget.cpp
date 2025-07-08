@@ -44,10 +44,6 @@ Widget::Widget(QWidget *parent)
     , btnBorrow(nullptr)
     , btnUser(nullptr)
     , btnBorrowBookPage(nullptr)
-    , borrowPage_widget(nullptr)
-    , borrowPage_searchEdit(nullptr)
-    , borrowPage_searchBtn(nullptr)
-    , borrowPage_table(nullptr)
 {
     ui->setupUi(this);
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
@@ -430,66 +426,41 @@ QPushButton:pressed {
     mainStack->addWidget(userPage);
 
     // 借阅图书页
-    borrowPage_widget = new QWidget(this);
+    QWidget *borrowPage_widget = new QWidget(this);
     QVBoxLayout *borrowPage_layout = new QVBoxLayout(borrowPage_widget);
 
     // 搜索区
     QHBoxLayout *borrowPage_searchLayout = new QHBoxLayout();
     borrowPage_searchLayout->setSpacing(10);
     borrowPage_searchLayout->setContentsMargins(15, 15, 15, 15);
+
+    QComboBox *borrowPageFieldCombo = new QComboBox(borrowPage_widget);
+    borrowPageFieldCombo->addItem("ISBN");
+    borrowPageFieldCombo->addItem("书名");
+    borrowPageFieldCombo->addItem("作者");
+    borrowPageFieldCombo->addItem("出版社");
+    borrowPageFieldCombo->addItem("出版年份");
+    borrowPageFieldCombo->setFixedWidth(120);
     
-    borrowPage_searchEdit = new QLineEdit(borrowPage_widget);
+    QLineEdit *borrowPage_searchEdit = new QLineEdit(borrowPage_widget);
     borrowPage_searchEdit->setPlaceholderText("请输入书名、作者或ISBN搜索");
     borrowPage_searchEdit->setMinimumWidth(200);
     
-    borrowPage_searchBtn = new QPushButton("搜索", borrowPage_widget);
+    QPushButton *borrowPage_searchBtn = new QPushButton("搜索", borrowPage_widget);
     borrowPage_searchBtn->setFixedWidth(80);
     
-    // 设置搜索框样式（与其他页面保持一致）
-    QString borrowPageSearchStyle = R"(
-        QLineEdit {
-            background-color: #ffffff;
-            border: 2px solid #e1e2e6;
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-size: 14px;
-            color: #2c3e50;
-            selection-background-color: #3498db;
-        }
-        QLineEdit:focus {
-            border-color: #3498db;
-            background-color: #ffffff;
-        }
-        QLineEdit::placeholder {
-            color: #95a5a6;
-            font-style: italic;
-        }
-        QPushButton {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        QPushButton:hover {
-            background-color: #2980b9;
-        }
-        QPushButton:pressed {
-            background-color: #21618c;
-        }
-    )";
+    borrowPageFieldCombo->setStyleSheet(searchStyle);
+    borrowPage_searchEdit->setStyleSheet(searchStyle);
+    borrowPage_searchBtn->setStyleSheet(searchStyle);
     
-    borrowPage_searchEdit->setStyleSheet(borrowPageSearchStyle);
-    borrowPage_searchBtn->setStyleSheet(borrowPageSearchStyle);
-    
+    borrowPage_searchLayout->addWidget(borrowPageFieldCombo);
     borrowPage_searchLayout->addWidget(borrowPage_searchEdit);
     borrowPage_searchLayout->addWidget(borrowPage_searchBtn);
-    borrowPage_layout->addLayout(borrowPage_searchLayout);
+    borrowPage_searchLayout->addStretch();
+    borrowPage_layout->insertLayout(0,borrowPage_searchLayout);
 
     // 表格
-    borrowPage_table = new QTableWidget(borrowPage_widget);
+    QTableWidget *borrowPage_table = new QTableWidget(borrowPage_widget);
     borrowPage_table->setColumnCount(6);
     QStringList borrowPage_headers;
     borrowPage_headers << "ISBN" << "书名" << "作者" << "出版社" << "出版年份" << "操作";
@@ -590,6 +561,13 @@ QPushButton:pressed {
             QMessageBox::warning(this, "未登录", "请先登录后再进行续借操作。");
         }
     });
+    connect(borrowPage_searchBtn, &QPushButton::clicked, this, [=]{
+        refreshBookTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text());
+    });
+    connect(borrowPage_searchEdit, &QLineEdit::returnPressed, this, [=]{
+        refreshBookTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text());
+    });
+
     
     // 用户管理功能信号槽
     connect(btnAddUser, &QPushButton::clicked, this,[this, userTable]{ onAddUser(userTable); });
@@ -700,13 +678,6 @@ QPushButton:pressed {
     // 更新登录状态显示
     updateLoginStatus();
 
-    // 信号槽
-    connect(borrowPage_searchBtn, &QPushButton::clicked, this, [this](){
-        refreshBorrowPageTable(borrowPage_searchEdit->text().trimmed());
-    });
-    connect(borrowPage_searchEdit, &QLineEdit::returnPressed, this, [this](){
-        refreshBorrowPageTable(borrowPage_searchEdit->text().trimmed());
-    });
 }
 
 // 全局登录对话框
@@ -1830,40 +1801,90 @@ void Widget::onImportBooks(QTableWidget *table)
     progress->exec();
 }
 
-void Widget::refreshBorrowPageTable(const QString &keyword)
+void Widget::refreshBorrowPageTable(QTableWidget *table)
 {
-    borrowPage_table->setRowCount(0);
+    table->setRowCount(0);
     const auto &books = bookManager.getAllBooks();
-    int row = 0;
     for (size_t i = 0; i < books.getSize(); ++i) {
+        table->insertRow(i);
         const Book &book = books[i];
         QString isbn = QString::fromStdString(book.getIsbn());
         QString title = QString::fromStdString(book.getTitle());
         QString author = QString::fromStdString(book.getAuthor());
         QString publisher = QString::fromStdString(book.getPublisher());
         QString year = QString::number(book.getPublishYear());
-
-        // 关键字过滤
-        if (!keyword.isEmpty() &&
-            !isbn.contains(keyword, Qt::CaseInsensitive) &&
-            !title.contains(keyword, Qt::CaseInsensitive) &&
-            !author.contains(keyword, Qt::CaseInsensitive)) {
-            continue;
-        }
-
-        borrowPage_table->insertRow(row);
-        borrowPage_table->setItem(row, 0, new QTableWidgetItem(isbn));
-        borrowPage_table->setItem(row, 1, new QTableWidgetItem(title));
-        borrowPage_table->setItem(row, 2, new QTableWidgetItem(author));
-        borrowPage_table->setItem(row, 3, new QTableWidgetItem(publisher));
-        borrowPage_table->setItem(row, 4, new QTableWidgetItem(year));
+        table->setItem(i, 0, new QTableWidgetItem(isbn));
+        table->setItem(i, 1, new QTableWidgetItem(title));
+        table->setItem(i, 2, new QTableWidgetItem(author));
+        table->setItem(i, 3, new QTableWidgetItem(publisher));
+        table->setItem(i, 4, new QTableWidgetItem(year));
         // 借阅按钮
         QPushButton *btn = new QPushButton("借阅");
-        borrowPage_table->setCellWidget(row, 5, btn);
+        table->setCellWidget(i, 5, btn);
         connect(btn, &QPushButton::clicked, this, [this, isbn, title](){
             handleBorrowPageBorrowClicked(isbn, title);
         });
-        ++row;
+    }
+}
+
+void Widget::refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const QString &keyword)
+{
+    table->setRowCount(0);
+    MyVector<Book> result;
+    QString key = keyword.trimmed();
+    if (key.isEmpty()) {
+        result = bookManager.getAllBooks();
+    } else {
+        std::string keyStr = key.toStdString();
+        switch (fieldIndex) {
+        case 0: //ISBN
+        {
+            Book* pBook = bookManager.findBookByIsbn(keyStr);
+            if (pBook) {
+                result.add(*pBook); // 传递 Book 对象引用
+            }
+        }
+        break;
+        case 1: //书名
+            result = bookManager.findBooksByTitle(keyStr);
+            break;
+        case 2: // 作者
+            result = bookManager.findBooksByAuthor(keyStr);
+            break;
+        case 3: // 出版社
+            result = bookManager.findBooksByPublisher(keyStr);
+            break;
+        case 4: // 出版年份
+        {
+            bool ok = false;
+            int year = key.toInt(&ok);
+            if (ok) {
+                result = bookManager.findBooksByYear(year);
+            }
+        }
+        break;
+        }
+
+    }
+    for (size_t i = 0; i < result.getSize(); ++i) {
+        table->insertRow(i);
+        const Book &book = result[i];
+        QString isbn = QString::fromStdString(book.getIsbn());
+        QString title = QString::fromStdString(book.getTitle());
+        QString author = QString::fromStdString(book.getAuthor());
+        QString publisher = QString::fromStdString(book.getPublisher());
+        QString year = QString::number(book.getPublishYear());
+        table->setItem(i, 0, new QTableWidgetItem(isbn));
+        table->setItem(i, 1, new QTableWidgetItem(title));
+        table->setItem(i, 2, new QTableWidgetItem(author));
+        table->setItem(i, 3, new QTableWidgetItem(publisher));
+        table->setItem(i, 4, new QTableWidgetItem(year));
+        // 借阅按钮
+        QPushButton *btn = new QPushButton("借阅");
+        table->setCellWidget(i, 5, btn);
+        connect(btn, &QPushButton::clicked, this, [this, isbn, title](){
+            handleBorrowPageBorrowClicked(isbn, title);
+        });
     }
 }
 
