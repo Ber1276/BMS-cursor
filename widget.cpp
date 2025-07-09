@@ -1356,9 +1356,23 @@ void Widget::switchToPage(int pageIndex)
             case BORROW_PAGE:
                 btnBorrow->setStyleSheet("QPushButton{color:white;background:#444;border:none;font-size:16px;} QPushButton:hover{background:#555;}");
                 updateBorrowPageTitle();
+                // 自动刷新借阅记录表格
+                {
+                    QTableWidget* borrowTable = qobject_cast<QTableWidget*>(mainStack->widget(BORROW_PAGE)->findChild<QTableWidget*>());
+                    if (borrowTable) {
+                        refreshBorrowTable(borrowTable, borrowTableLastFieldIndex, borrowTableLastKeyword);
+                    }
+                }
                 break;
             case USER_PAGE:
                 btnUser->setStyleSheet("QPushButton{color:white;background:#444;border:none;font-size:16px;} QPushButton:hover{background:#555;}");
+                // 自动刷新用户表格
+                {
+                    QTableWidget* userTable = qobject_cast<QTableWidget*>(mainStack->widget(USER_PAGE)->findChild<QTableWidget*>());
+                    if (userTable) {
+                        refreshUserTable(userTable, ""); // 默认刷新全部用户，可根据需要保存/传递上次搜索关键字
+                    }
+                }
                 break;
             case BORROW_BOOK_PAGE:
                 btnBorrowBookPage->setStyleSheet("QPushButton{color:white;background:#444;border:none;font-size:16px;} QPushButton:hover{background:#555;}");
