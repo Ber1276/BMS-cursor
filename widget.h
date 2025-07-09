@@ -58,6 +58,7 @@ private slots:
     void onEditBook(class QTableWidget *table);
     void onDeleteBook(class QTableWidget *table);
     void refreshBorrowTable(class QTableWidget *table);
+    void refreshBorrowTable(QTableWidget *table, int fieldIndex, const QString &keyword);
     void onBorrowBook(class QTableWidget *table);
     void onReturnBook(class QTableWidget *table);
     void onRenewBook(class QTableWidget *table);

@@ -144,6 +144,109 @@ size_t BorrowManager::getOverdueCount(const std::string& username) const {
     return count;
 }
 
+//查找方法实现
+BorrowRecord* BorrowManager::findByRecordId(MyVector<BorrowRecord> &record, const std::string& recordId){
+    int index = record.hashFindByRecordId(recordId);
+    return index >= 0 ? &record[index] : nullptr;
+}
+
+MyVector<BorrowRecord> BorrowManager::findByISBN(MyVector<BorrowRecord> &record, const std::string& ISBN){
+    MyVector<BorrowRecord> result;
+    for (size_t i = 0; i < record.getSize(); ++i) {
+        const BorrowRecord& borrowRecord = record[i];
+        if (borrowRecord.getIsbn() == ISBN) {
+            result.add(borrowRecord);
+        }
+    }
+    return result;
+}
+
+MyVector<BorrowRecord> BorrowManager::findByUsername(MyVector<BorrowRecord> &record, const std::string& username){
+    MyVector<BorrowRecord> result;
+    for (size_t i = 0; i < record.getSize(); ++i) {
+        const BorrowRecord& borrowRecord = record[i];
+        if (borrowRecord.getUsername().find(username) != std::string::npos) {
+            result.add(borrowRecord);
+        }
+    }
+    return result;
+}
+
+MyVector<BorrowRecord> BorrowManager::findByBorrowDate(MyVector<BorrowRecord> &record, const std::string& borrowDate){
+    MyVector<BorrowRecord> sortedRecords = record;
+    //  排序
+    auto comp = [](const BorrowRecord& a, const BorrowRecord& b) { return a.getBorrowDateStr() < b.getBorrowDateStr(); };
+    if (sortedRecords.getSize() > 1) {
+        MyAlgorithm::sort(&sortedRecords[0], static_cast<int>(sortedRecords.getSize()), comp);
+    }
+    MyVector<BorrowRecord> result;
+    auto getBorrowDate = [](const BorrowRecord& record) -> std::string {
+        return record.getBorrowDateStr();
+    };
+
+    auto timeComparator = [](std::string a, std::string b) {
+        return a < b;
+    };
+    int index = sortedRecords.binarySearch(borrowDate, getBorrowDate, timeComparator);
+    if (index >= 0) {
+        int left = index, right = index;
+        while (left >= 0 && sortedRecords[left].getBorrowDateStr() == borrowDate) {
+            result.push_back(sortedRecords[left]);
+            --left;
+        }
+        while (right < sortedRecords.getSize() && sortedRecords[right].getBorrowDateStr() == borrowDate) {
+            if (right > index) {
+                result.push_back(sortedRecords[right]);
+            }
+            ++right;
+        }
+    }
+    return result;
+}
+
+MyVector<BorrowRecord> BorrowManager::findByDueDate(MyVector<BorrowRecord> &record, const std::string& dueDate){
+    MyVector<BorrowRecord> sortedRecords = record;
+    //  排序
+    auto comp = [](const BorrowRecord& a, const BorrowRecord& b) { return a.getDueDateStr() < b.getDueDateStr(); };
+    if (sortedRecords.getSize() > 1) {
+        MyAlgorithm::sort(&sortedRecords[0], static_cast<int>(sortedRecords.getSize()), comp);
+    }
+    MyVector<BorrowRecord> result;
+    auto getDueDate = [](const BorrowRecord& record) -> std::string {
+        return record.getDueDateStr();
+    };
+
+    auto timeComparator = [](std::string a, std::string b) {
+        return a < b;
+    };
+    int index = sortedRecords.binarySearch(dueDate, getDueDate, timeComparator);
+    if (index >= 0) {
+        int left = index, right = index;
+        while (left >= 0 && sortedRecords[left].getDueDateStr() == dueDate) {
+            result.push_back(sortedRecords[left]);
+            --left;
+        }
+        while (right < sortedRecords.getSize() && sortedRecords[right].getDueDateStr() == dueDate) {
+            if (right > index) {
+                result.push_back(sortedRecords[right]);
+            }
+            ++right;
+        }
+    }
+    return result;
+}
+
+MyVector<BorrowRecord> BorrowManager::findByStatus(MyVector<BorrowRecord> &record, const std::string& status){
+    MyVector<BorrowRecord> result;
+    for (size_t i = 0; i < record.getSize(); ++i) {
+        const BorrowRecord& borrowRecord = record[i];
+        if (borrowRecord.getStatus() == status) {
+            result.add(borrowRecord);
+        }
+    }
+    return result;
+}
+
 // 数据持久化方法实现
 bool BorrowManager::saveToFile(const QString& filename) const {
     QFile file(filename);

@@ -38,6 +38,9 @@ bool BookManager::updateBook(const std::string& isbn, const Book& updatedBook) {
     int index = books.hashFindByIsbn(isbn);
     if (index >= 0 && updatedBook.getIsbn() == isbn) {
         books[index] = updatedBook;
+        if (!(updatedBook.getIsbn() == isbn)){
+            books.rebuildBookHashTable();
+        }
         return true;
     }
     return false;

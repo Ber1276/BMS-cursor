@@ -51,6 +51,15 @@ public:
     const MyVector<BorrowRecord>& getAllBorrowRecords() const { return records; }
     size_t getBorrowCount(const std::string& username) const;
     size_t getOverdueCount(const std::string& username) const;
+
+    //查找方法
+    BorrowRecord *findByRecordId(MyVector<BorrowRecord> &record, const std::string& recordId);
+    MyVector<BorrowRecord> findByISBN(MyVector<BorrowRecord> &record, const std::string& ISBN);
+    MyVector<BorrowRecord> findByUsername(MyVector<BorrowRecord> &record, const std::string& username);
+    MyVector<BorrowRecord> findByBorrowDate(MyVector<BorrowRecord> &record, const std::string& borrowDate);
+    MyVector<BorrowRecord> findByDueDate(MyVector<BorrowRecord> &record, const std::string& dueDate);
+    MyVector<BorrowRecord> findByStatus(MyVector<BorrowRecord> &record, const std::string& status);
+
     
     // 排序方法
     MyVector<BorrowRecord> getSortedBorrowRecords(BorrowSortBy sortBy, BorrowSortOrder order = BorrowSortOrder::ASCENDING) const;

@@ -338,6 +338,35 @@ void Widget::setupCustomUi()
     borrowTable->setSelectionMode(QAbstractItemView::SingleSelection);
     
     // 操作按钮
+    QHBoxLayout *borrowRecord_searchLayout = new QHBoxLayout();
+    borrowRecord_searchLayout->setSpacing(10);
+    borrowRecord_searchLayout->setContentsMargins(15, 15, 15, 15);
+
+    QComboBox *borrowRecordFieldCombo = new QComboBox(borrowPage);
+    borrowRecordFieldCombo->addItem("记录Id");
+    borrowRecordFieldCombo->addItem("ISBN");
+    borrowRecordFieldCombo->addItem("用户名");
+    borrowRecordFieldCombo->addItem("借阅日期");
+    borrowRecordFieldCombo->addItem("到期时间");
+    borrowRecordFieldCombo->addItem("状态");
+    borrowRecordFieldCombo->setFixedWidth(120);
+
+    QLineEdit *borrowRecord_searchEdit = new QLineEdit(borrowPage);
+    borrowRecord_searchEdit->setPlaceholderText("请输入记录Id、ISBN、用户名等搜索");
+    borrowRecord_searchEdit->setMinimumWidth(200);
+
+    QPushButton *borrowRecord_searchBtn = new QPushButton("搜索", borrowPage);
+    borrowRecord_searchBtn->setFixedWidth(80);
+
+    borrowRecordFieldCombo->setStyleSheet(searchStyle);
+    borrowRecord_searchEdit->setStyleSheet(searchStyle);
+    borrowRecord_searchBtn->setStyleSheet(searchStyle);
+
+    borrowRecord_searchLayout->addWidget(borrowRecordFieldCombo);
+    borrowRecord_searchLayout->addWidget(borrowRecord_searchEdit);
+    borrowRecord_searchLayout->addWidget(borrowRecord_searchBtn);
+    borrowRecord_searchLayout->addStretch();
+    borrowLayout->insertLayout(0,borrowRecord_searchLayout);
     QHBoxLayout *borrowBtnLayout = new QHBoxLayout();
     QPushButton *btnBorrowBook = new QPushButton("借书", borrowPage);
     QPushButton *btnReturnBook = new QPushButton("还书", borrowPage);
@@ -656,16 +685,22 @@ void Widget::setupCustomUi()
     });
 
 
-    connect(btnRefreshBorrow, &QPushButton::clicked, this,[this, borrowTable]{
+    connect(btnRefreshBorrow, &QPushButton::clicked, this,[this, borrowTable, borrowRecordFieldCombo, borrowRecord_searchEdit]{
         if (isLoggedIn) {
             // 从文件重新加载数据以确保数据一致性
             refreshBorrowDataFromFile();
             // 刷新表格显示
-            refreshBorrowTable(borrowTable);
+            refreshBorrowTable(borrowTable, borrowRecordFieldCombo->currentIndex(), borrowRecord_searchEdit->text());
             QMessageBox::information(this, "刷新成功", "借阅记录已从文件重新加载并刷新！");
         } else {
             QMessageBox::warning(this, "未登录", "请先登录后再查看借阅记录。");
         }
+    });
+    connect(borrowRecord_searchBtn, &QPushButton::clicked, this, [=]{
+        refreshBorrowTable(borrowTable, borrowRecordFieldCombo->currentIndex(), borrowRecord_searchEdit->text());
+    });
+    connect(borrowRecord_searchEdit, &QLineEdit::returnPressed, this, [=]{
+        refreshBorrowTable(borrowTable, borrowRecordFieldCombo->currentIndex(), borrowRecord_searchEdit->text());
     });
     
     // 借阅表格排序连接
@@ -1710,13 +1745,77 @@ void Widget::refreshBorrowTable(QTableWidget *table)
     
     for (size_t i = 0; i < records.getSize(); ++i) {
         table->insertRow(i);
-        table->setItem(i, 0, new QTableWidgetItem(QString::number(records[i].getId())));
+        table->setItem(i, 0, new QTableWidgetItem(QString::fromStdString(records[i].getRecordId())));
         table->setItem(i, 1, new QTableWidgetItem(QString::fromStdString(records[i].getIsbn())));
         table->setItem(i, 2, new QTableWidgetItem(QString::fromStdString(records[i].getUsername())));
         table->setItem(i, 3, new QTableWidgetItem(QString::fromStdString(records[i].getBorrowDateStr())));
         table->setItem(i, 4, new QTableWidgetItem(QString::fromStdString(records[i].getDueDateStr())));
         table->setItem(i, 5, new QTableWidgetItem(QString::fromStdString(records[i].getReturnDateStr())));
         table->setItem(i, 6, new QTableWidgetItem(QString::fromStdString(records[i].getStatus())));
+    }
+}
+
+void Widget::refreshBorrowTable(QTableWidget *table, int fieldIndex, const QString &keyword)
+{
+    table->setRowCount(0);
+
+    if (!isLoggedIn) {
+        QMessageBox::warning(this, "未登录", "请先登录后再查看借阅记录。");
+        return;
+    }
+
+    // 根据用户权限显示不同的记录
+    MyVector<BorrowRecord> records;
+    if (hasPermission(ADMIN)) {
+        // 管理员可以看到所有记录
+        records = borrowManager->getAllBorrowRecords();
+    } else {
+        // 普通用户只能看到自己的记录
+        records = borrowManager->getUserBorrowRecords(currentUser.toStdString());
+    }
+    MyVector<BorrowRecord> result;
+    QString key = keyword.trimmed();
+    if (key.isEmpty()) {
+        result = records;
+    } else {
+        std::string keyStr = key.toStdString();
+        switch (fieldIndex) {
+        case 0: //记录ID
+        {
+            BorrowRecord *borrowRecord = borrowManager->findByRecordId(records,keyStr);
+            if (borrowRecord) {
+                result.add(*borrowRecord);
+            }
+        }
+        break;
+        case 1: // ISBN
+            result = borrowManager->findByISBN(records,keyStr);
+            break;
+        case 2: // 用户名
+            result = borrowManager->findByUsername(records,keyStr);
+            break;
+        case 3: // 借阅时间
+            result = borrowManager->findByBorrowDate(records,keyStr);
+            break;
+        case 4: // 到期时间
+            result = borrowManager->findByDueDate(records,keyStr);
+            break;
+        case 5: // 状态
+            result = borrowManager->findByStatus(records,keyStr);
+            break;
+        }
+
+    }
+
+    for (size_t i = 0; i < result.getSize(); ++i) {
+        table->insertRow(i);
+        table->setItem(i, 0, new QTableWidgetItem(QString::fromStdString(result[i].getRecordId())));
+        table->setItem(i, 1, new QTableWidgetItem(QString::fromStdString(result[i].getIsbn())));
+        table->setItem(i, 2, new QTableWidgetItem(QString::fromStdString(result[i].getUsername())));
+        table->setItem(i, 3, new QTableWidgetItem(QString::fromStdString(result[i].getBorrowDateStr())));
+        table->setItem(i, 4, new QTableWidgetItem(QString::fromStdString(result[i].getDueDateStr())));
+        table->setItem(i, 5, new QTableWidgetItem(QString::fromStdString(result[i].getReturnDateStr())));
+        table->setItem(i, 6, new QTableWidgetItem(QString::fromStdString(result[i].getStatus())));
     }
 }
 

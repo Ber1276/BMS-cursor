@@ -7,6 +7,7 @@
 
 struct User;
 struct Book;
+struct BorrowRecord;
 
 /**
  * @brief The MyVector class 动态数组
@@ -73,6 +74,9 @@ public:
         if constexpr (std::is_same<T, Book>::value) {
             rebuildBookHashTable();
         }
+        if constexpr (std::is_same<T, BorrowRecord>::value) {
+            rebuildBorrowRecordHashTable();
+        }
     }
     // 不重建哈希表的 push_back 方法
     void push_back_no_rebuild(const T& value) {
@@ -119,6 +123,9 @@ public:
         if constexpr (std::is_same<T, Book>::value) {
             rebuildBookHashTable();
         }
+        if constexpr (std::is_same<T, BorrowRecord>::value) {
+            rebuildBorrowRecordHashTable();
+        }
     }
     /**
      * @brief 二分查找
@@ -140,7 +147,7 @@ public:
             Key current = getKey(data[mid]);
             if (!comp(current, target) && !comp(target, current)) { //相等
                 return static_cast<int>(mid);
-            } else if (comp(current, target)) { // current < target 
+            } else if (comp(current, target)) { // current < target
                 left = mid + 1;
             } else { // current > target
                 if (mid == 0) break;
@@ -149,9 +156,12 @@ public:
         }
         return -1;
     }
+    // []符号重载
     T& operator[](size_t index) { return data[index]; }
     const T& operator[](size_t index) const { return data[index]; }
+    // 获取大小
     size_t getSize() const { return size; }
+    // DJB2 哈希算法
     size_t customHash(const std::string& str) const {
         size_t hash = 5381;
         for (char c : str) {
@@ -198,9 +208,11 @@ public:
         }
     }
 
+    //重建用户哈希表
     template<typename U = T>
     std::enable_if_t<std::is_same<U, User>::value, void>
     rebuildHashTable() {
+        // 清空哈希表
         for (size_t i = 0; i < hashTableSize; ++i) {
             hashValues[i] = 0;
             indices[i] = static_cast<size_t>(-1);
@@ -208,6 +220,7 @@ public:
         for (size_t i = 0; i < size; ++i) {
             size_t hashValue = customHash(data[i].username);
             size_t pos = hashValue % hashTableSize;
+            // 线性探测解决冲突
             while (hashValues[pos] != 0 && hashValues[pos] != hashValue) {
                 pos = (pos + 1) % hashTableSize;
             }
@@ -215,6 +228,8 @@ public:
             indices[pos] = i;
         }
     }
+
+    //按用户名哈希查找
     template<typename U = T>
     std::enable_if_t<std::is_same<U, User>::value, int>
     hashFindByUsername(const std::string& username) const {
@@ -223,6 +238,7 @@ public:
         for (size_t i = 0; i < hashTableSize; ++i) {
             if (hashValues[pos] == 0) break;
             if (hashValues[pos] == targetHash) {
+                //验证是否为要查找的记录
                 if (data[indices[pos]].username == username) {
                     return static_cast<int>(indices[pos]);
                 }
@@ -231,6 +247,7 @@ public:
         }
         return -1;
     }
+    //重建书籍哈希表
     template<typename U = T>
     std::enable_if_t<std::is_same<U, Book>::value, void>
     rebuildBookHashTable() {
@@ -248,6 +265,7 @@ public:
             indices[pos] = i;
         }
     }
+    //哈希查找书籍
     template<typename U = T>
     std::enable_if_t<std::is_same<U, Book>::value, int>
     hashFindByIsbn(const std::string& isbn) const {
@@ -264,6 +282,41 @@ public:
         }
         return -1;
     }
+    // 重建借阅记录哈希表
+    template<typename U = T>
+    std::enable_if_t<std::is_same<U, BorrowRecord>::value, void>rebuildBorrowRecordHashTable() {
+        for (size_t i = 0; i < hashTableSize; ++i) {
+            hashValues[i] = 0;
+            indices[i] = static_cast<size_t>(-1);
+        }
+        for (size_t i = 0; i < size; ++i) {
+            size_t hashValue = customHash(data[i].getRecordId());
+            size_t pos = hashValue % hashTableSize;
+            while (hashValues[pos] != 0 && hashValues[pos] != hashValue) {
+                pos = (pos + 1) % hashTableSize;
+            }
+            hashValues[pos] = hashValue;
+            indices[pos] = i;
+        }
+    }
+    //哈希查找借阅记录
+    template<typename U = T>
+    std::enable_if_t<std::is_same<U, BorrowRecord>::value, int>
+    hashFindByRecordId(const std::string& recordId) const {
+        size_t targetHash = customHash(recordId);
+        size_t pos = targetHash % hashTableSize;
+        for (size_t i = 0; i < hashTableSize; ++i) {
+            if (hashValues[pos] == 0) break;
+            if (hashValues[pos] == targetHash) {
+                if (data[indices[pos]].getRecordId() == recordId) {
+                    return static_cast<int>(indices[pos]);
+                }
+            }
+            pos = (pos + 1) % hashTableSize;
+        }
+        return -1;
+    }
+    //清空哈希表
     void clear() {
         size = 0;
         if constexpr (std::is_same<T, User>::value) {
@@ -272,5 +325,10 @@ public:
         if constexpr (std::is_same<T, Book>::value) {
             rebuildBookHashTable();
         }
+        if constexpr (std::is_same<T, BorrowRecord>::value) {
+            rebuildBorrowRecordHashTable();
+        }
     }
-}; 
+
+
+};
