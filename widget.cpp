@@ -1532,6 +1532,9 @@ void Widget::refreshBookTable(QTableWidget *table)
 
 void Widget::refreshBookTable(QTableWidget *table, int fieldIndex, const QString &keyword)
 {
+    // 保存当前搜索条件
+    bookTableLastFieldIndex = fieldIndex;
+    bookTableLastKeyword = keyword;
     table->setRowCount(0);
     MyVector<Book> result;
     QString key = keyword.trimmed();
@@ -1567,7 +1570,20 @@ void Widget::refreshBookTable(QTableWidget *table, int fieldIndex, const QString
             }
             break;
         }
-
+    }
+    // 集成排序逻辑
+    if (bookTableSortState.lastSortedColumn >= 0 && bookTableSortState.lastSortedColumn < 5) {
+        SortBy sortBy;
+        switch (bookTableSortState.lastSortedColumn) {
+        case 0: sortBy = SortBy::ISBN; break;
+        case 1: sortBy = SortBy::TITLE; break;
+        case 2: sortBy = SortBy::AUTHOR; break;
+        case 3: sortBy = SortBy::PUBLISHER; break;
+        case 4: sortBy = SortBy::YEAR; break;
+        default: sortBy = SortBy::TITLE; break;
+        }
+        SortOrder order = bookTableSortState.ascending ? SortOrder::ASCENDING : SortOrder::DESCENDING;
+        result = bookManager.sortSearchResults(result, sortBy, order);
     }
     for (size_t i = 0; i < result.getSize(); ++i) {
         table->insertRow(i);
@@ -1757,6 +1773,9 @@ void Widget::refreshBorrowTable(QTableWidget *table)
 
 void Widget::refreshBorrowTable(QTableWidget *table, int fieldIndex, const QString &keyword)
 {
+    // 保存当前搜索条件
+    borrowTableLastFieldIndex = fieldIndex;
+    borrowTableLastKeyword = keyword;
     table->setRowCount(0);
 
     if (!isLoggedIn) {
@@ -1804,9 +1823,23 @@ void Widget::refreshBorrowTable(QTableWidget *table, int fieldIndex, const QStri
             result = borrowManager->findByStatus(records,keyStr);
             break;
         }
-
     }
-
+    // 集成排序逻辑
+    if (borrowTableSortState.lastSortedColumn >= 0 && borrowTableSortState.lastSortedColumn < 7) {
+        BorrowSortBy sortBy;
+        switch (borrowTableSortState.lastSortedColumn) {
+        case 0: sortBy = BorrowSortBy::RECORD_ID; break;
+        case 1: sortBy = BorrowSortBy::ISBN; break;
+        case 2: sortBy = BorrowSortBy::USERNAME; break;
+        case 3: sortBy = BorrowSortBy::BORROW_DATE; break;
+        case 4: sortBy = BorrowSortBy::DUE_DATE; break;
+        case 5: sortBy = BorrowSortBy::RETURN_DATE; break;
+        case 6: sortBy = BorrowSortBy::STATUS; break;
+        default: sortBy = BorrowSortBy::RECORD_ID; break;
+        }
+        BorrowSortOrder order = borrowTableSortState.ascending ? BorrowSortOrder::ASCENDING : BorrowSortOrder::DESCENDING;
+        result = borrowManager->sortSearchResults(result, sortBy, order);
+    }
     for (size_t i = 0; i < result.getSize(); ++i) {
         table->insertRow(i);
         table->setItem(i, 0, new QTableWidgetItem(QString::fromStdString(result[i].getRecordId())));
@@ -2484,49 +2517,14 @@ void Widget::onBookTableHeaderClicked(int logicalIndex)
     }
     
     // 确定排序方向和字段
-    SortBy sortBy;
-    switch (logicalIndex) {
-    case 0: sortBy = SortBy::ISBN; break;       // ISBN列
-    case 1: sortBy = SortBy::TITLE; break;      // 书名列
-    case 2: sortBy = SortBy::AUTHOR; break;     // 作者列
-    case 3: sortBy = SortBy::PUBLISHER; break;  // 出版社列
-    case 4: sortBy = SortBy::YEAR; break;       // 出版年份列
-    default: return;
-    }
-    
-    // 如果点击的是同一列，切换排序方向
     if (bookTableSortState.lastSortedColumn == logicalIndex) {
         bookTableSortState.ascending = !bookTableSortState.ascending;
     } else {
         bookTableSortState.lastSortedColumn = logicalIndex;
         bookTableSortState.ascending = false; // 默认降序
     }
-    
-    SortOrder order = bookTableSortState.ascending ? SortOrder::ASCENDING : SortOrder::DESCENDING;
-    
-    // 获取排序后的图书列表
-    MyVector<Book> sortedBooks = bookManager.getSortedBooks(sortBy, order);
-    
-    // 刷新表格显示
-    QTableWidget* bookTable = qobject_cast<QTableWidget*>(mainStack->widget(BOOK_PAGE)->findChild<QTableWidget*>());
-    if (bookTable) {
-        bookTable->setUpdatesEnabled(false);
-        bookTable->blockSignals(true);
-        
-        bookTable->setRowCount(static_cast<int>(sortedBooks.getSize()));
-        
-        for (size_t i = 0; i < sortedBooks.getSize(); ++i) {
-            const Book &book = sortedBooks[i];
-            bookTable->setItem(static_cast<int>(i), 0, new QTableWidgetItem(QString::fromStdString(book.getIsbn())));
-            bookTable->setItem(static_cast<int>(i), 1, new QTableWidgetItem(QString::fromStdString(book.getTitle())));
-            bookTable->setItem(static_cast<int>(i), 2, new QTableWidgetItem(QString::fromStdString(book.getAuthor())));
-            bookTable->setItem(static_cast<int>(i), 3, new QTableWidgetItem(QString::fromStdString(book.getPublisher())));
-            bookTable->setItem(static_cast<int>(i), 4, new QTableWidgetItem(QString::number(book.getPublishYear())));
-        }
-        
-        bookTable->blockSignals(false);
-        bookTable->setUpdatesEnabled(true);
-    }
+    // 直接调用带搜索参数的刷新函数，排序集成在其中
+    refreshBookTable(qobject_cast<QTableWidget*>(mainStack->widget(BOOK_PAGE)->findChild<QTableWidget*>()), bookTableLastFieldIndex, bookTableLastKeyword);
 }
 
 void Widget::onBorrowTableHeaderClicked(int logicalIndex)
@@ -2537,53 +2535,14 @@ void Widget::onBorrowTableHeaderClicked(int logicalIndex)
     }
     
     // 确定排序方向和字段
-    BorrowSortBy sortBy;
-    switch (logicalIndex) {
-    case 0: sortBy = BorrowSortBy::RECORD_ID; break;    // 记录ID列
-    case 1: sortBy = BorrowSortBy::ISBN; break;         // ISBN列
-    case 2: sortBy = BorrowSortBy::USERNAME; break;     // 用户名列
-    case 3: sortBy = BorrowSortBy::BORROW_DATE; break;  // 借阅日期列
-    case 4: sortBy = BorrowSortBy::DUE_DATE; break;     // 到期日期列
-    case 5: sortBy = BorrowSortBy::RETURN_DATE; break;  // 归还日期列
-    case 6: sortBy = BorrowSortBy::STATUS; break;       // 状态列
-    default: return;
-    }
-    
-    // 如果点击的是同一列，切换排序方向
     if (borrowTableSortState.lastSortedColumn == logicalIndex) {
         borrowTableSortState.ascending = !borrowTableSortState.ascending;
     } else {
         borrowTableSortState.lastSortedColumn = logicalIndex;
         borrowTableSortState.ascending = false; // 默认降序
     }
-    
-    BorrowSortOrder order = borrowTableSortState.ascending ? BorrowSortOrder::ASCENDING : BorrowSortOrder::DESCENDING;
-    
-    // 获取排序后的借阅记录列表
-    MyVector<BorrowRecord> sortedRecords = borrowManager->getSortedBorrowRecords(sortBy, order);
-    
-    // 刷新表格显示
-    QTableWidget* borrowTable = qobject_cast<QTableWidget*>(mainStack->widget(BORROW_PAGE)->findChild<QTableWidget*>());
-    if (borrowTable) {
-        borrowTable->setUpdatesEnabled(false);
-        borrowTable->blockSignals(true);
-        
-        borrowTable->setRowCount(static_cast<int>(sortedRecords.getSize()));
-        
-        for (size_t i = 0; i < sortedRecords.getSize(); ++i) {
-            const BorrowRecord &record = sortedRecords[i];
-            borrowTable->setItem(static_cast<int>(i), 0, new QTableWidgetItem(QString::fromStdString(record.getRecordId())));
-            borrowTable->setItem(static_cast<int>(i), 1, new QTableWidgetItem(QString::fromStdString(record.getIsbn())));
-            borrowTable->setItem(static_cast<int>(i), 2, new QTableWidgetItem(QString::fromStdString(record.getUsername())));
-            borrowTable->setItem(static_cast<int>(i), 3, new QTableWidgetItem(QString::fromStdString(record.getBorrowDateStr())));
-            borrowTable->setItem(static_cast<int>(i), 4, new QTableWidgetItem(QString::fromStdString(record.getDueDateStr())));
-            borrowTable->setItem(static_cast<int>(i), 5, new QTableWidgetItem(QString::fromStdString(record.getReturnDateStr())));
-            borrowTable->setItem(static_cast<int>(i), 6, new QTableWidgetItem(QString::fromStdString(record.getStatus())));
-        }
-        
-        borrowTable->blockSignals(false);
-        borrowTable->setUpdatesEnabled(true);
-    }
+    // 直接调用带搜索参数的刷新函数，排序集成在其中
+    refreshBorrowTable(qobject_cast<QTableWidget*>(mainStack->widget(BORROW_PAGE)->findChild<QTableWidget*>()), borrowTableLastFieldIndex, borrowTableLastKeyword);
 }
 
 void Widget::onBorrowPageTableHeaderClicked(int logicalIndex)

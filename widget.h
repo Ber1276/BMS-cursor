@@ -103,6 +103,12 @@ private:
     TableSortState bookTableSortState;
     TableSortState borrowTableSortState;
     TableSortState borrowPageTableSortState;
+
+    // 搜索状态管理
+    int bookTableLastFieldIndex = 0;
+    QString bookTableLastKeyword;
+    int borrowTableLastFieldIndex = 0;
+    QString borrowTableLastKeyword;
     
     // 用户管理相关方法
     void setupCustomUi();
