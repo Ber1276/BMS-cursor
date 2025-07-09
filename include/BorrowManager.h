@@ -9,12 +9,32 @@
 // 前向声明
 class QString;
 
+// 借阅记录排序枚举
+enum class BorrowSortBy {
+    RECORD_ID,
+    ISBN,
+    USERNAME,
+    BORROW_DATE,
+    DUE_DATE,
+    RETURN_DATE,
+    STATUS
+};
+
+enum class BorrowSortOrder {
+    ASCENDING,
+    DESCENDING
+};
+
 class BorrowManager {
 private:
     MyVector<BorrowRecord> records;
     BookManager* bookManager;
     UserManager* userManager;
     static const int DEFAULT_BORROW_DAYS = 30;
+    
+    // 排序辅助方法
+    void sortBorrowRecords(MyVector<BorrowRecord> &recordList, BorrowSortBy sortBy, BorrowSortOrder order) const;
+    
 public:
     BorrowManager(BookManager* bookManager, UserManager* userManager);
     bool borrowBook(const std::string& isbn, const std::string& username);
@@ -31,6 +51,10 @@ public:
     const MyVector<BorrowRecord>& getAllBorrowRecords() const { return records; }
     size_t getBorrowCount(const std::string& username) const;
     size_t getOverdueCount(const std::string& username) const;
+    
+    // 排序方法
+    MyVector<BorrowRecord> getSortedBorrowRecords(BorrowSortBy sortBy, BorrowSortOrder order = BorrowSortOrder::ASCENDING) const;
+    MyVector<BorrowRecord> sortSearchResults(const MyVector<BorrowRecord> &searchResults, BorrowSortBy sortBy, BorrowSortOrder order = BorrowSortOrder::ASCENDING) const;
     
     // 数据持久化方法
     bool saveToFile(const QString& filename) const;

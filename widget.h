@@ -69,6 +69,11 @@ private slots:
     void onImportBooks(QTableWidget *table);
     void refreshBorrowPageTable(class QTableWidget *table, int pageNum, int pageSize);
     void refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const QString &keyword, int pageNum, int pageSize);
+    
+    // 表格排序槽函数
+    void onBookTableHeaderClicked(int logicalIndex);
+    void onBorrowTableHeaderClicked(int logicalIndex);
+    void onBorrowPageTableHeaderClicked(int logicalIndex);
 
 private:
     Ui::Widget *ui;
@@ -88,6 +93,15 @@ private:
     bool isLoggedIn = false;
     QString currentUser;
     Role currentUserRole = USER;
+    
+    // 表格排序状态管理
+    struct TableSortState {
+        int lastSortedColumn = -1;
+        bool ascending = true;
+    };
+    TableSortState bookTableSortState;
+    TableSortState borrowTableSortState;
+    TableSortState borrowPageTableSortState;
     
     // 用户管理相关方法
     void setupCustomUi();

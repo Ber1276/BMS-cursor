@@ -7,6 +7,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QDebug>
+#include "../include/Mysort.h"
 
 BorrowManager::BorrowManager(BookManager* bookManager, UserManager* userManager)
     : bookManager(bookManager), userManager(userManager) {}
@@ -222,4 +223,61 @@ bool BorrowManager::loadFromFile(const QString& filename) {
     
     qDebug() << "成功加载" << successCount << "条借阅记录从文件:" << filename;
     return successCount > 0;
+}
+
+// 排序功能实现
+static bool compareBorrowRecords(const BorrowRecord& a, const BorrowRecord& b, BorrowSortBy sortBy, BorrowSortOrder order) {
+    bool result = false;
+    
+    switch (sortBy) {
+    case BorrowSortBy::RECORD_ID:
+        result = a.getId() < b.getId();
+        break;
+    case BorrowSortBy::ISBN:
+        result = a.getIsbn() < b.getIsbn();
+        break;
+    case BorrowSortBy::USERNAME:
+        result = a.getUsername() < b.getUsername();
+        break;
+    case BorrowSortBy::BORROW_DATE:
+        result = a.getBorrowDate() < b.getBorrowDate();
+        break;
+    case BorrowSortBy::DUE_DATE:
+        result = a.getDueDate() < b.getDueDate();
+        break;
+    case BorrowSortBy::RETURN_DATE:
+        result = a.getReturnDate() < b.getReturnDate();
+        break;
+    case BorrowSortBy::STATUS:
+        result = a.getStatus() < b.getStatus();
+        break;
+    }
+    
+    return order == BorrowSortOrder::ASCENDING ? result : !result;
+}
+
+void BorrowManager::sortBorrowRecords(MyVector<BorrowRecord> &recordList, BorrowSortBy sortBy, BorrowSortOrder order) const {
+    if (recordList.getSize() <= 1) {
+        return;
+    }
+    
+    auto comp = [sortBy, order](const BorrowRecord& a, const BorrowRecord& b) -> bool {
+        return compareBorrowRecords(a, b, sortBy, order);
+    };
+    
+    BorrowRecord* arr = &recordList[0];
+    int length = static_cast<int>(recordList.getSize());
+    MyAlgorithm::sort(arr, length, comp);
+}
+
+MyVector<BorrowRecord> BorrowManager::getSortedBorrowRecords(BorrowSortBy sortBy, BorrowSortOrder order) const {
+    MyVector<BorrowRecord> sortedRecords = records;
+    sortBorrowRecords(sortedRecords, sortBy, order);
+    return sortedRecords;
+}
+
+MyVector<BorrowRecord> BorrowManager::sortSearchResults(const MyVector<BorrowRecord> &searchResults, BorrowSortBy sortBy, BorrowSortOrder order) const {
+    MyVector<BorrowRecord> sortedResults = searchResults;
+    sortBorrowRecords(sortedResults, sortBy, order);
+    return sortedResults;
 } 
