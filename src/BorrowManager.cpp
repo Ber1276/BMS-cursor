@@ -21,17 +21,14 @@ bool BorrowManager::borrowBook(const std::string& isbn, const std::string& usern
     if (!book) {
         throw std::runtime_error("图书不存在");
     }
-    for (size_t i = 0; i < records.getSize(); i++) {
-        if (records[i].getBookIsbn() == isbn && 
-            records[i].getUsername() == username && 
-            !records[i].getIsReturned()) {
-            throw std::runtime_error("该用户已借阅此书且未归还");
-        }
+    if (book->getStatus() == 1){
+        throw std::runtime_error("此书已借出");
     }
     time_t now = std::time(nullptr);
     time_t dueDate = now + (DEFAULT_BORROW_DAYS * 24 * 60 * 60);
     BorrowRecord record(isbn, username, now, dueDate);
     records.add(record);
+    bookManager->updateBookStatus(isbn,1); //借出
     return true;
 }
 
@@ -42,6 +39,7 @@ bool BorrowManager::returnBook(const std::string& isbn, const std::string& usern
             !records[i].getIsReturned()) {
             records[i].setReturnDate(std::time(nullptr));
             records[i].setIsReturned(true);
+            bookManager->updateBookStatus(isbn,0); //归还
             return true;
         }
     }

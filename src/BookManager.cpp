@@ -46,6 +46,16 @@ bool BookManager::updateBook(const std::string& isbn, const Book& updatedBook) {
     return false;
 }
 
+bool BookManager::updateBookStatus(const std::string& isbn,int status){
+    int index = books.hashFindByIsbn(isbn);
+    if (index >= 0) {
+        books[index].setStatus(status);
+        return true;
+    }
+    return false;
+}
+
+
 bool BookManager::updateBookField(const std::string& isbn, const std::string& field, const std::string& newValue) {
     int index = books.hashFindByIsbn(isbn);
     if (index >= 0) {

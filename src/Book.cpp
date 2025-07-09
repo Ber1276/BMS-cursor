@@ -31,6 +31,10 @@ int Book::getPublishYear() const {
     return publishYear; 
 }
 
+int Book::getStatus() const {
+    return status;
+}
+
 void Book::setIsbn(const std::string& isbn) {
     if (isbn.empty()) {
         throw std::invalid_argument("ISBN不能为空");
@@ -64,6 +68,10 @@ void Book::setPublishYear(int year) {
         throw std::invalid_argument("出版年份无效");
     }
     this->publishYear = year;
+}
+
+void Book::setStatus(int status) {
+    this->status = status;
 }
 
 // 数据持久化方法实现

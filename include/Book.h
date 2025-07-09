@@ -14,6 +14,7 @@ private:
     std::string author;
     std::string publisher;
     int publishYear;
+    int status = 0;//未借出
 
 public:
     Book();
@@ -26,12 +27,14 @@ public:
     std::string getAuthor() const;
     std::string getPublisher() const;
     int getPublishYear() const;
+    int getStatus() const;
 
     void setIsbn(const std::string& isbn);
     void setTitle(const std::string& title);
     void setAuthor(const std::string& author);
     void setPublisher(const std::string& publisher);
     void setPublishYear(int year);
+    void setStatus(int status);
     
     // 数据持久化方法
     QJsonObject toJson() const;
