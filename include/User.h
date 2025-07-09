@@ -7,6 +7,11 @@
 
 enum Role { USER, ADMIN };
 
+/**
+ * @brief The User struct 用户信息
+ * 包含用户名、密码和角色
+ * @author 陈子涵
+ */
 struct User {
     std::string username;
     std::string password;
@@ -23,6 +28,11 @@ struct User {
     }
 };
 
+/**
+ * @brief The UserManager class 用户管理模块
+ * 负责用户的添加、删除、更新、查找等功能
+ * @author 陈子涵
+ */
 class UserManager
 {
 private:

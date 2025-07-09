@@ -1,6 +1,7 @@
 #include "../include/PermissionManager.h"
 #include <iostream>
 
+//登录
 bool PermissionManager::login(const std::string& username, const std::string& password) {
     if (!userManager){
         return false;
@@ -13,14 +14,17 @@ bool PermissionManager::login(const std::string& username, const std::string& pa
     return false;
 }
 
+//获取当前用户
 const User* PermissionManager::getCurrentUser() const {
     return currentUser;
 }
 
+//登出
 void PermissionManager::logout() {
     currentUser = nullptr;
 }
 
+//注册
 bool PermissionManager::registerUser(const std::string& username, const std::string& password, Role role) {
     if (!userManager) return false;
     if (userManager->findUser(username)) {
@@ -32,6 +36,7 @@ bool PermissionManager::registerUser(const std::string& username, const std::str
     return true;
 }
 
+//删除当前用户
 bool PermissionManager::deleteCurrentUser() {
     if (!userManager) return false;
     if (!currentUser) {

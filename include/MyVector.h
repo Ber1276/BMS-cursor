@@ -67,7 +67,7 @@ public:
             hashTableSize = newHashTableSize;
         }
         data[size++] = value;
-        // 对于 User 和 Book 类型，重建哈希表
+        // 重建哈希表
         if constexpr (std::is_same<T, User>::value) {
             rebuildHashTable();
         }
@@ -116,7 +116,7 @@ public:
             data[size - 1] = T(); // 置为默认值，防止悬挂
         }
         --size;
-        // 对于 User 和 Book 类型，重建哈希表
+        // 重建哈希表
         if constexpr (std::is_same<T, User>::value) {
             rebuildHashTable();
         }
@@ -329,6 +329,4 @@ public:
             rebuildBorrowRecordHashTable();
         }
     }
-
-
 };

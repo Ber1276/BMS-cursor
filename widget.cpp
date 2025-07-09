@@ -90,6 +90,7 @@ void Widget::setupCustomUi()
     titleLayout->setContentsMargins(0, 0, 8, 0);
     titleLayout->addStretch();
 
+    //登录按钮
     QPushButton *btnLogin = new QPushButton("登录", titleBar);
     btnLogin->setObjectName("btnLogin");
     btnLogin->setStyleSheet(R"(
@@ -200,13 +201,13 @@ void Widget::setupCustomUi()
     bookTable->setColumnCount(5);
     QStringList headers;
     headers << "ISBN" << "书名" << "作者" << "出版社" << "出版年份";
-    bookTable->setHorizontalHeaderLabels(headers);
-    bookTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    bookTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    bookTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    bookTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    bookTable->setHorizontalHeaderLabels(headers); //设置表格的水平表头标签
+    bookTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch); //让所有列自动拉伸以填满整个表格控件的宽度
+    bookTable->setEditTriggers(QAbstractItemView::NoEditTriggers); //禁用用户对表格内容的编辑功能
+    bookTable->setSelectionBehavior(QAbstractItemView::SelectRows); //点击任意单元格时，整行被选中
+    bookTable->setSelectionMode(QAbstractItemView::SingleSelection); //设置只能选择一行
     
-    // 操作按钮
+    //搜索栏
     QHBoxLayout *bookSearchLayout = new QHBoxLayout();
     bookSearchLayout->setSpacing(10);
     bookSearchLayout->setContentsMargins(15, 15, 15, 15);
@@ -303,6 +304,7 @@ void Widget::setupCustomUi()
     bookSearchLayout->addWidget(btnSearchBook);
     bookSearchLayout->addStretch();
     bookLayout->insertLayout(0, bookSearchLayout); // 插入到最上方
+    // 操作按钮
     QHBoxLayout *btnLayout = new QHBoxLayout();
     QPushButton *btnAdd = new QPushButton("添加图书", bookPage);
     QPushButton *btnEdit = new QPushButton("修改图书", bookPage);
@@ -326,7 +328,7 @@ void Widget::setupCustomUi()
     borrowTitleLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: #333; margin: 10px;");
     borrowTitleLabel->setAlignment(Qt::AlignCenter);
     borrowLayout->addWidget(borrowTitleLabel);
-    
+    // 借阅记录表
     QTableWidget *borrowTable = new QTableWidget(borrowPage);
     borrowTable->setColumnCount(7);
     QStringList borrowHeaders;
@@ -337,7 +339,7 @@ void Widget::setupCustomUi()
     borrowTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     borrowTable->setSelectionMode(QAbstractItemView::SingleSelection);
     
-    // 操作按钮
+    // 搜索框
     QHBoxLayout *borrowRecord_searchLayout = new QHBoxLayout();
     borrowRecord_searchLayout->setSpacing(10);
     borrowRecord_searchLayout->setContentsMargins(15, 15, 15, 15);
@@ -367,6 +369,8 @@ void Widget::setupCustomUi()
     borrowRecord_searchLayout->addWidget(borrowRecord_searchBtn);
     borrowRecord_searchLayout->addStretch();
     borrowLayout->insertLayout(0,borrowRecord_searchLayout);
+
+    // 操作按钮
     QHBoxLayout *borrowBtnLayout = new QHBoxLayout();
     QPushButton *btnBorrowBook = new QPushButton("借书", borrowPage);
     QPushButton *btnReturnBook = new QPushButton("还书", borrowPage);
@@ -400,6 +404,7 @@ void Widget::setupCustomUi()
     QPushButton *btnEditUser = new QPushButton("修改用户", userPage);
     QPushButton *btnDeleteUser = new QPushButton("删除用户", userPage);
     QPushButton *btnRefreshUser = new QPushButton("刷新用户", userPage);
+    // 搜索框
     QHBoxLayout *userSearchLayout = new QHBoxLayout();
     userSearchLayout->setSpacing(10);
     userSearchLayout->setContentsMargins(15, 15, 15, 15);
@@ -410,45 +415,9 @@ void Widget::setupCustomUi()
     
     QPushButton *btnSearchUser = new QPushButton("搜索", userPage);
     btnSearchUser->setFixedWidth(80);
-    
-    // 设置搜索框样式（与图书管理页面保持一致）
-    QString userSearchStyle = R"(
-        QLineEdit {
-            background-color: #ffffff;
-            border: 2px solid #e1e2e6;
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-size: 14px;
-            color: #2c3e50;
-            selection-background-color: #3498db;
-        }
-        QLineEdit:focus {
-            border-color: #3498db;
-            background-color: #ffffff;
-        }
-        QLineEdit::placeholder {
-            color: #95a5a6;
-            font-style: italic;
-        }
-        QPushButton {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        QPushButton:hover {
-            background-color: #2980b9;
-        }
-        QPushButton:pressed {
-            background-color: #21618c;
-        }
-    )";
-    
-    userSearchEdit->setStyleSheet(userSearchStyle);
-    btnSearchUser->setStyleSheet(userSearchStyle);
+
+    userSearchEdit->setStyleSheet(searchStyle);
+    btnSearchUser->setStyleSheet(searchStyle);
     
     userSearchLayout->addWidget(userSearchEdit);
     userSearchLayout->addWidget(btnSearchUser);
@@ -651,10 +620,11 @@ void Widget::setupCustomUi()
             QMessageBox::warning(this, "权限不足", "只有管理员才能批量导入图书。");
         }
     });
-    connect(btnSearchBook, &QPushButton::clicked, this, [=]{
+    // 搜索功能
+    connect(btnSearchBook, &QPushButton::clicked, this, [=]{ // 搜索按钮点击事件
         refreshBookTable(bookTable, bookFieldCombo->currentIndex(), bookSearchEdit->text());
     });
-    connect(bookSearchEdit, &QLineEdit::returnPressed, this, [=]{
+    connect(bookSearchEdit, &QLineEdit::returnPressed, this, [=]{ // 回车键触发搜索
         refreshBookTable(bookTable, bookFieldCombo->currentIndex(), bookSearchEdit->text());
     });
     
@@ -684,7 +654,7 @@ void Widget::setupCustomUi()
         }
     });
 
-
+    // 刷新借阅记录按钮
     connect(btnRefreshBorrow, &QPushButton::clicked, this,[this, borrowTable, borrowRecordFieldCombo, borrowRecord_searchEdit]{
         if (isLoggedIn) {
             // 从文件重新加载数据以确保数据一致性
@@ -696,10 +666,12 @@ void Widget::setupCustomUi()
             QMessageBox::warning(this, "未登录", "请先登录后再查看借阅记录。");
         }
     });
-    connect(borrowRecord_searchBtn, &QPushButton::clicked, this, [=]{
+
+    // 搜索借阅记录
+    connect(borrowRecord_searchBtn, &QPushButton::clicked, this, [=]{ // 搜索按钮点击事件
         refreshBorrowTable(borrowTable, borrowRecordFieldCombo->currentIndex(), borrowRecord_searchEdit->text());
     });
-    connect(borrowRecord_searchEdit, &QLineEdit::returnPressed, this, [=]{
+    connect(borrowRecord_searchEdit, &QLineEdit::returnPressed, this, [=]{ // 回车键触发搜索
         refreshBorrowTable(borrowTable, borrowRecordFieldCombo->currentIndex(), borrowRecord_searchEdit->text());
     });
     
@@ -711,6 +683,7 @@ void Widget::setupCustomUi()
     connect(btnEditUser, &QPushButton::clicked, this,[this, userTable]{ onEditUser(userTable); });
     connect(btnDeleteUser, &QPushButton::clicked, this,[this, userTable]{ onDeleteUser(userTable); });
     connect(btnRefreshUser, &QPushButton::clicked, this,[this, userTable]{ refreshUserTable(userTable); });
+    // 搜索用户
     connect(btnSearchUser, &QPushButton::clicked, this, [=]{
         refreshUserTable(userTable, userSearchEdit->text().trimmed());
     });
@@ -805,8 +778,6 @@ void Widget::setupCustomUi()
     btnEditUser->setStyleSheet(btnStyle);
     btnDeleteUser->setStyleSheet(btnStyle);
     btnRefreshUser->setStyleSheet(btnStyle);
-    btnSearchUser->setStyleSheet(btnStyle);
-    btnSearchBook->setStyleSheet(btnStyle);
 
     QString tableStyle = R"(
     QTableWidget {
@@ -1530,6 +1501,7 @@ void Widget::logoutUser()
     }
 }
 
+//刷新图书管理页面
 void Widget::refreshBookTable(QTableWidget *table)
 {
     table->setRowCount(0);
@@ -1544,13 +1516,15 @@ void Widget::refreshBookTable(QTableWidget *table)
     }
 }
 
+//按查询排序结果刷新页面
 void Widget::refreshBookTable(QTableWidget *table, int fieldIndex, const QString &keyword)
 {
-    // 保存当前搜索条件
+    // 保存当前搜索条件以供按列排序时使用
     bookTableLastFieldIndex = fieldIndex;
     bookTableLastKeyword = keyword;
     table->setRowCount(0);
     MyVector<Book> result;
+    //按字段调用查询函数
     QString key = keyword.trimmed();
     if (key.isEmpty()) {
         result = bookManager.getAllBooks();
@@ -1599,6 +1573,7 @@ void Widget::refreshBookTable(QTableWidget *table, int fieldIndex, const QString
         SortOrder order = bookTableSortState.ascending ? SortOrder::ASCENDING : SortOrder::DESCENDING;
         result = bookManager.sortSearchResults(result, sortBy, order);
     }
+    //展示
     for (size_t i = 0; i < result.getSize(); ++i) {
         table->insertRow(i);
         table->setItem(i, 0, new QTableWidgetItem(QString::fromStdString(result[i].getIsbn())));
@@ -1753,7 +1728,7 @@ void Widget::onDeleteBook(QTableWidget *table)
 }
 
 
-
+// 刷新借阅记录表格
 void Widget::refreshBorrowTable(QTableWidget *table)
 {
     table->setRowCount(0);
@@ -1785,6 +1760,7 @@ void Widget::refreshBorrowTable(QTableWidget *table)
     }
 }
 
+// 刷新借阅记录表格，支持按字段查询和排序
 void Widget::refreshBorrowTable(QTableWidget *table, int fieldIndex, const QString &keyword)
 {
     // 保存当前搜索条件
@@ -1807,6 +1783,7 @@ void Widget::refreshBorrowTable(QTableWidget *table, int fieldIndex, const QStri
         records = borrowManager->getUserBorrowRecords(currentUser.toStdString());
     }
     MyVector<BorrowRecord> result;
+    //按字段调用查询函数
     QString key = keyword.trimmed();
     if (key.isEmpty()) {
         result = records;
@@ -1854,6 +1831,7 @@ void Widget::refreshBorrowTable(QTableWidget *table, int fieldIndex, const QStri
         BorrowSortOrder order = borrowTableSortState.ascending ? BorrowSortOrder::ASCENDING : BorrowSortOrder::DESCENDING;
         result = borrowManager->sortSearchResults(result, sortBy, order);
     }
+    // 展示结果
     for (size_t i = 0; i < result.getSize(); ++i) {
         table->insertRow(i);
         table->setItem(i, 0, new QTableWidgetItem(QString::fromStdString(result[i].getRecordId())));

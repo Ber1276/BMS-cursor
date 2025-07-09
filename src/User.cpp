@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+// 添加用户
 void UserManager::addUser(const User &user){
     auto getUsername = [](const User& user) -> std::string { return user.username; };
     auto comparator = [](const std::string& a, const std::string& b) -> bool { return a < b; };
@@ -19,7 +20,9 @@ void UserManager::addUser(const User &user){
     users.add(user);
 }
 
+// 删除用户
 bool UserManager::removeUser(const std::string &username){
+    //哈希查找用户
     const User* userPtr = findUser(username);
     if (userPtr) {
         // 找到用户，获取其索引并删除
@@ -30,7 +33,9 @@ bool UserManager::removeUser(const std::string &username){
     return false;
 }
 
+// 更新用户信息
 bool UserManager::updateUser(const std::string &oldUsername, const User &newUser) {
+    //哈希查找用户
     const User* userPtr = findUser(oldUsername);
     if (userPtr) {
         int idx = static_cast<int>(userPtr - &users[0]);
@@ -42,6 +47,7 @@ bool UserManager::updateUser(const std::string &oldUsername, const User &newUser
     return false;
 }
 
+// 打印所有用户信息
 void UserManager::printAllUsers() const {
     for (size_t i = 0; i < users.getSize(); ++i) {
         const User& user = users[i];
@@ -50,6 +56,7 @@ void UserManager::printAllUsers() const {
     }
 }
 
+// 哈希查找用户
 const User* UserManager::findUser(const std::string &username) const {
     int idx = users.hashFindByUsername(username);
     if (idx >= 0) {
@@ -58,7 +65,7 @@ const User* UserManager::findUser(const std::string &username) const {
     return nullptr;
 }
 
-
+// 按用户名模糊查找用户
 MyVector<User> UserManager::fuzzyFindUsers(const std::string& keyword)const {
     MyVector<User> result;
     for (size_t i = 0; i < users.getSize(); ++i) {
@@ -70,6 +77,7 @@ MyVector<User> UserManager::fuzzyFindUsers(const std::string& keyword)const {
     return result;
 }
 
+// 按用户名模糊查找并排序用户
 MyVector<User> UserManager::findAndSortUsers(const std::string& keyword, bool ascending) const {
     MyVector<User> result = fuzzyFindUsers(keyword);
     // 排序，按用户名
@@ -82,6 +90,7 @@ MyVector<User> UserManager::findAndSortUsers(const std::string& keyword, bool as
     return result;
 }
 
+// 管理员批量删除用户
 bool UserManager::adminRemoveUsers(const MyVector<std::string>& usernames){
     bool allRemoved = true;
     for (size_t i = 0; i < usernames.getSize(); ++i) {
@@ -93,6 +102,7 @@ bool UserManager::adminRemoveUsers(const MyVector<std::string>& usernames){
     return allRemoved;
 }
 
+// 保存用户信息到文件
 bool UserManager::saveToFile(const std::string& filename) const {
     std::ofstream ofs(filename, std::ios::out | std::ios::trunc);
     if (!ofs.is_open()) return false;
@@ -109,6 +119,7 @@ bool UserManager::saveToFile(const std::string& filename) const {
     return true;
 }
 
+// 从文件加载用户信息
 bool UserManager::loadFromFile(const std::string& filename) {
     std::ifstream ifs(filename);
     if (!ifs.is_open()) return false;
