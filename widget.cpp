@@ -685,9 +685,11 @@ void Widget::setupCustomUi()
 
     // 借阅图书信号槽
     connect(borrowPage_searchBtn, &QPushButton::clicked, this, [=]{
+        currentBorrowPage = 1;
         refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, cmbPageSize->currentText().toInt());
     });
     connect(borrowPage_searchEdit, &QLineEdit::returnPressed, this, [=]{
+        currentBorrowPage = 1;
         refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, cmbPageSize->currentText().toInt());
     });
     //分页控制信号槽
