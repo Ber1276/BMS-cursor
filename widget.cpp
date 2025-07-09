@@ -692,41 +692,41 @@ void Widget::setupCustomUi()
     });
 
     // 借阅图书信号槽
-    connect(borrowPage_searchBtn, &QPushButton::clicked, this, [=]{
+    connect(borrowPage_searchBtn, &QPushButton::clicked, this, [=]{ //搜索按钮
         currentBorrowPage = 1;
         refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, cmbPageSize->currentText().toInt());
     });
-    connect(borrowPage_searchEdit, &QLineEdit::returnPressed, this, [=]{
+    connect(borrowPage_searchEdit, &QLineEdit::returnPressed, this, [=]{ //搜索框
         currentBorrowPage = 1;
         refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, cmbPageSize->currentText().toInt());
     });
     //分页控制信号槽
-    connect(btnFirst, &QPushButton::clicked, this, [=](){
+    connect(btnFirst, &QPushButton::clicked, this, [=](){ //首页
         currentBorrowPage = 1;
         refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, cmbPageSize->currentText().toInt());
     });
 
-    connect(btnPrev, &QPushButton::clicked, this, [=](){
+    connect(btnPrev, &QPushButton::clicked, this, [=](){ //上一页
         if (currentBorrowPage > 1) {
             --currentBorrowPage;
             refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, cmbPageSize->currentText().toInt());
         }
     });
 
-    connect(btnNext, &QPushButton::clicked, this, [=](){
+    connect(btnNext, &QPushButton::clicked, this, [=](){ //下一页
         if (currentBorrowPage < totalBorrowPage) {
             ++currentBorrowPage;
             refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, cmbPageSize->currentText().toInt());
         }
     });
 
-    connect(btnLast, &QPushButton::clicked, this, [=](){
+    connect(btnLast, &QPushButton::clicked, this, [=](){ //末页
         int pageSize = cmbPageSize->currentText().toInt();
         currentBorrowPage = totalBorrowPage;
         refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, pageSize);
     });
 
-    connect(cmbPageSize, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](){
+    connect(cmbPageSize, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](){ //页数
         currentBorrowPage = 1;
         refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, cmbPageSize->currentText().toInt());
     });
@@ -1959,6 +1959,7 @@ void Widget::onRenewBook(QTableWidget *table)
     }
 }
 
+//刷新用户表
 void Widget::refreshUserTable(QTableWidget *table)
 {
     table->setRowCount(0);
@@ -1970,6 +1971,7 @@ void Widget::refreshUserTable(QTableWidget *table)
     }
 }
 
+// 刷新用户表支持按用户名查询
 void Widget::refreshUserTable(QTableWidget *table, const QString &keyword)
 {
     table->setRowCount(0);
@@ -1981,6 +1983,7 @@ void Widget::refreshUserTable(QTableWidget *table, const QString &keyword)
     }
 }
 
+// 添加用户
 void Widget::onAddUser(QTableWidget *table)
 {
     if (!hasPermission(ADMIN)) {
@@ -1988,6 +1991,7 @@ void Widget::onAddUser(QTableWidget *table)
         return;
     }
     
+    //开启添加用户对话框
     QDialog dialog(this);
     dialog.setWindowTitle("添加用户");
     QFormLayout form(&dialog);
@@ -2004,7 +2008,7 @@ void Widget::onAddUser(QTableWidget *table)
     form.addRow(&buttonBox);
     QObject::connect(&buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     QObject::connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-    if (dialog.exec() == QDialog::Accepted) {
+    if (dialog.exec() == QDialog::Accepted) { //确认后开始添加
         QString username = usernameEdit->text().trimmed();
         QString password = passwordEdit->text();
         Role role = static_cast<Role>(roleCombo->currentData().toInt());
@@ -2018,15 +2022,16 @@ void Widget::onAddUser(QTableWidget *table)
         }
         try {
             User user(username.toStdString(), password.toStdString(), role);
-            userManager.addUser(user);
-            saveUserData();
-            refreshUserTable(table);
+            userManager.addUser(user); //添加用户
+            saveUserData(); //保存用户
+            refreshUserTable(table); //刷新用户
         } catch (const std::exception &e) {
             QMessageBox::warning(this, "添加失败", e.what());
         }
     }
 }
 
+//修改用户
 void Widget::onEditUser(QTableWidget *table)
 {
     if (!hasPermission(ADMIN)) {
@@ -2089,6 +2094,7 @@ void Widget::onEditUser(QTableWidget *table)
     }
 }
 
+//删除用户
 void Widget::onDeleteUser(QTableWidget *table)
 {
     if (!hasPermission(ADMIN)) {
@@ -2108,7 +2114,7 @@ void Widget::onDeleteUser(QTableWidget *table)
         QMessageBox::warning(this, "删除失败", "不能删除当前登录用户！");
         return;
     }
-    
+    //弹出确认框
     int ret = QMessageBox::question(this, "确认删除", QString("确定要删除用户：%1 吗？").arg(username), QMessageBox::Yes | QMessageBox::No);
     if (ret == QMessageBox::Yes) {
         if (!userManager.removeUser(username.toStdString())) {
@@ -2222,7 +2228,7 @@ static const QString BUTTON_STYLE = R"(
     QPushButton:disabled { background-color: #cccccc; color: #666666; }
 )";
 
-
+//刷新借阅图书界面，支持分页功能
 void Widget::refreshBorrowPageTable(QTableWidget *table, int pageNum, int pageSize)
 {
     table->setUpdatesEnabled(false);      // 禁用刷新，提升性能
@@ -2248,8 +2254,9 @@ void Widget::refreshBorrowPageTable(QTableWidget *table, int pageNum, int pageSi
         sortedBooks = bookManager.getAllBooks();
     }
 
+    //分页
     MyVector<Book> pagedResult;
-    int totalItems = static_cast<int>(sortedBooks.getSize());
+    int totalItems = static_cast<int>(sortedBooks.getSize()); //总数
     int startIndex = (pageNum - 1) * pageSize;
     int endIndex = std::min(startIndex + pageSize, totalItems);
 
@@ -2289,12 +2296,14 @@ void Widget::refreshBorrowPageTable(QTableWidget *table, int pageNum, int pageSi
     updatePageInfo(pageNum,pageSize, totalItems);
 }
 
+//刷新借阅图书界面，支持分页，按字段查询排序功能
 void Widget::refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const QString &keyword, int pageNum, int pageSize)
 {
     table->setUpdatesEnabled(false); // 1. 禁用刷新
     table->blockSignals(true);
 
     table->clearContents();
+    //按字段查询
     MyVector<Book> result;
     QString key = keyword.trimmed();
     if (key.isEmpty()) {
@@ -2345,6 +2354,7 @@ void Widget::refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const Q
         sortedResult = result;
     }
 
+    //分页展示
     MyVector<Book> pagedResult;
     int totalItems = static_cast<int>(sortedResult.getSize());
     int startIndex = (pageNum - 1) * pageSize;
@@ -2386,6 +2396,7 @@ void Widget::refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const Q
     updatePageInfo(pageNum,pageSize, totalItems);
 }
 
+//借阅图书
 void Widget::handleBorrowPageBorrowClicked(const QString &isbn, const QString &title)
 {
     if (!isLoggedIn) {
