@@ -8,17 +8,22 @@
 struct User;
 struct Book;
 
+/**
+ * @brief The MyVector class 动态数组
+ * @author 陈子涵
+ */
 template<typename T>
 class MyVector {
 private:
-    T* data;
-    size_t capacity;
-    size_t size;
-    size_t* hashValues;
-    size_t* indices;
-    size_t hashTableSize;
+    T* data; //数据
+    size_t capacity; //容量
+    size_t size; //大小
+    size_t* hashValues; //哈希值
+    size_t* indices; //哈希值对应索引
+    size_t hashTableSize; //哈希表大小
 
 public:
+    //构建函数和析构函数
     explicit MyVector(size_t initialCapacity = 4)
         : capacity(initialCapacity), size(0), hashTableSize(initialCapacity * 2) {
         data = new T[capacity];
@@ -34,8 +39,10 @@ public:
         delete[] hashValues;
         delete[] indices;
     }
+    // 添加元素每添加一个元素就重建哈希表
     void add(const T& value) { push_back(value); }
     void push_back(const T& value) {
+        // 如果容量已满，扩展容量
         if (size == capacity) {
             T* newData = new T[capacity * 2];
             for (size_t i = 0; i < size; ++i) {
@@ -44,6 +51,7 @@ public:
             delete[] data;
             data = newData;
             capacity *= 2;
+            // 扩展哈希表
             size_t newHashTableSize = capacity * 2;
             size_t* newHashValues = new size_t[newHashTableSize];
             size_t* newIndices = new size_t[newHashTableSize];
@@ -58,6 +66,7 @@ public:
             hashTableSize = newHashTableSize;
         }
         data[size++] = value;
+        // 对于 User 和 Book 类型，重建哈希表
         if constexpr (std::is_same<T, User>::value) {
             rebuildHashTable();
         }
@@ -65,6 +74,7 @@ public:
             rebuildBookHashTable();
         }
     }
+    // 不重建哈希表的 push_back 方法
     void push_back_no_rebuild(const T& value) {
         if (size == capacity) {
             T* newData = new T[capacity * 2];
@@ -90,6 +100,7 @@ public:
         data[size++] = value;
         // 不重建哈希表
     }
+    // 删除元素
     void removeAt(size_t index) {
         if (index >= size) {
             throw std::out_of_range("Index out of range");
@@ -101,6 +112,7 @@ public:
             data[size - 1] = T(); // 置为默认值，防止悬挂
         }
         --size;
+        // 对于 User 和 Book 类型，重建哈希表
         if constexpr (std::is_same<T, User>::value) {
             rebuildHashTable();
         }
@@ -108,6 +120,14 @@ public:
             rebuildBookHashTable();
         }
     }
+    /**
+     * @brief 二分查找
+     * @author 陈子涵
+     * @param target 要查找的目标值
+     * @param getKey 获取元素键的函数
+     * @param comp 比较函数
+     * @return 返回目标值的索引，如果未找到则返回 -1
+     */
     template<typename Key, typename GetKey,typename Comparator>
     int binarySearch(Key target, GetKey getKey, Comparator comp) const {
         if (size == 0) {
@@ -118,11 +138,11 @@ public:
         while (left <= right) {
             size_t mid = left + (right - left) / 2;
             Key current = getKey(data[mid]);
-            if (!comp(current, target) && !comp(target, current)) {
+            if (!comp(current, target) && !comp(target, current)) { //相等
                 return static_cast<int>(mid);
-            } else if (comp(current, target)) {
+            } else if (comp(current, target)) { // current < target 
                 left = mid + 1;
-            } else {
+            } else { // current > target
                 if (mid == 0) break;
                 right = mid - 1;
             }
