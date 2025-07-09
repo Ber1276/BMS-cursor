@@ -32,6 +32,7 @@ public:
     void addBookNoRebuild(const Book &book);
     void rebuildBookHashTable();
     bool updateBook(const std::string& isbn, const Book& updatedBook);
+    bool updateBookStatus(const std::string& isbn,int status);
     bool updateBookField(const std::string& isbn, const std::string& field, const std::string& newValue);
     bool removeBook(const std::string &isbn);
     Book *findBookByIsbn(const std::string &isbn);
