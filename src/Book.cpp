@@ -82,6 +82,7 @@ QJsonObject Book::toJson() const {
     json["author"] = QString::fromStdString(author);
     json["publisher"] = QString::fromStdString(publisher);
     json["publishYear"] = publishYear;
+    json["status"] = status;
     return json;
 }
 
@@ -100,5 +101,8 @@ void Book::fromJson(const QJsonObject& json) {
     }
     if (json.contains("publishYear")) {
         publishYear = json["publishYear"].toInt();
+    }
+    if (json.contains("status")) {
+        status = json["status"].toInt();
     }
 } 
