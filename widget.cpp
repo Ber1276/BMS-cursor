@@ -629,6 +629,9 @@ void Widget::setupCustomUi()
         refreshBookTable(bookTable, bookFieldCombo->currentIndex(), bookSearchEdit->text());
     });
     
+    // 图书表格排序连接
+    connect(bookTable->horizontalHeader(), &QHeaderView::sectionClicked, this, &Widget::onBookTableHeaderClicked);
+    
     // 借阅管理功能信号槽 - 需要登录，普通用户只能操作自己的记录
     connect(btnBorrowBook, &QPushButton::clicked, this,[this, borrowTable]{
         if (isLoggedIn) {
@@ -664,6 +667,9 @@ void Widget::setupCustomUi()
             QMessageBox::warning(this, "未登录", "请先登录后再查看借阅记录。");
         }
     });
+    
+    // 借阅表格排序连接
+    connect(borrowTable->horizontalHeader(), &QHeaderView::sectionClicked, this, &Widget::onBorrowTableHeaderClicked);
     
     // 用户管理功能信号槽
     connect(btnAddUser, &QPushButton::clicked, this,[this, userTable]{ onAddUser(userTable); });
@@ -716,6 +722,9 @@ void Widget::setupCustomUi()
         currentBorrowPage = 1;
         refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, cmbPageSize->currentText().toInt());
     });
+    
+    // 借阅图书页面表格排序连接
+    connect(borrowPage_table->horizontalHeader(), &QHeaderView::sectionClicked, this, &Widget::onBorrowPageTableHeaderClicked);
     
     // 窗口控制信号槽
     connect(btnMin, &QPushButton::clicked, this, &QWidget::showMinimized);
@@ -2095,14 +2104,33 @@ void Widget::refreshBorrowPageTable(QTableWidget *table, int pageNum, int pageSi
     table->setUpdatesEnabled(false);      // 禁用刷新，提升性能
     table->blockSignals(true);            // 禁用信号，防止多余触发
 
-    const auto &books = bookManager.getAllBooks();
+    // 应用当前排序状态
+    MyVector<Book> sortedBooks;
+    if (borrowPageTableSortState.lastSortedColumn >= 0 && borrowPageTableSortState.lastSortedColumn < 5) {
+        // 有排序状态，应用排序
+        SortBy sortBy;
+        switch (borrowPageTableSortState.lastSortedColumn) {
+        case 0: sortBy = SortBy::ISBN; break;       // ISBN列
+        case 1: sortBy = SortBy::TITLE; break;      // 书名列
+        case 2: sortBy = SortBy::AUTHOR; break;     // 作者列
+        case 3: sortBy = SortBy::PUBLISHER; break;  // 出版社列
+        case 4: sortBy = SortBy::YEAR; break;       // 出版年份列
+        default: sortBy = SortBy::TITLE; break;
+        }
+        SortOrder order = borrowPageTableSortState.ascending ? SortOrder::ASCENDING : SortOrder::DESCENDING;
+        sortedBooks = bookManager.getSortedBooks(sortBy, order);
+    } else {
+        // 没有排序状态，使用原始顺序
+        sortedBooks = bookManager.getAllBooks();
+    }
+
     MyVector<Book> pagedResult;
-    int totalItems = static_cast<int>(books.getSize());
+    int totalItems = static_cast<int>(sortedBooks.getSize());
     int startIndex = (pageNum - 1) * pageSize;
     int endIndex = std::min(startIndex + pageSize, totalItems);
 
     for (int i = startIndex; i < endIndex; ++i) {
-        pagedResult.add(books[i]);
+        pagedResult.add(sortedBooks[i]);
     }
     int rowCount = static_cast<int>(pagedResult.getSize());
     table->clearContents();
@@ -2173,13 +2201,33 @@ void Widget::refreshBorrowPageTable(QTableWidget *table, int fieldIndex, const Q
         }
     }
 
+    // 应用当前排序状态到搜索结果
+    MyVector<Book> sortedResult;
+    if (borrowPageTableSortState.lastSortedColumn >= 0 && borrowPageTableSortState.lastSortedColumn < 5) {
+        // 有排序状态，应用排序到搜索结果
+        SortBy sortBy;
+        switch (borrowPageTableSortState.lastSortedColumn) {
+        case 0: sortBy = SortBy::ISBN; break;       // ISBN列
+        case 1: sortBy = SortBy::TITLE; break;      // 书名列
+        case 2: sortBy = SortBy::AUTHOR; break;     // 作者列
+        case 3: sortBy = SortBy::PUBLISHER; break;  // 出版社列
+        case 4: sortBy = SortBy::YEAR; break;       // 出版年份列
+        default: sortBy = SortBy::TITLE; break;
+        }
+        SortOrder order = borrowPageTableSortState.ascending ? SortOrder::ASCENDING : SortOrder::DESCENDING;
+        sortedResult = bookManager.sortSearchResults(result, sortBy, order);
+    } else {
+        // 没有排序状态，使用原始搜索结果
+        sortedResult = result;
+    }
+
     MyVector<Book> pagedResult;
-    int totalItems = static_cast<int>(result.getSize());
+    int totalItems = static_cast<int>(sortedResult.getSize());
     int startIndex = (pageNum - 1) * pageSize;
     int endIndex = std::min(startIndex + pageSize, totalItems);
 
     for (int i = startIndex; i < endIndex; ++i) {
-        pagedResult.add(result[i]);
+        pagedResult.add(sortedResult[i]);
     }
 
     table->setRowCount(static_cast<int>(pagedResult.getSize())); // 2. 直接设置行数
@@ -2326,4 +2374,145 @@ void Widget::updatePageInfo(int pageNum, int pageSize, int totalResults)
     btnPrev->setEnabled(pageNum > 1);
     btnNext->setEnabled(pageNum < totalBorrowPage);
     btnLast->setEnabled(pageNum < totalBorrowPage);
+}
+
+// 表格排序槽函数实现
+void Widget::onBookTableHeaderClicked(int logicalIndex)
+{
+    // 跳过操作列（最后一列）
+    if (logicalIndex >= 5) {
+        return;
+    }
+    
+    // 确定排序方向和字段
+    SortBy sortBy;
+    switch (logicalIndex) {
+    case 0: sortBy = SortBy::ISBN; break;       // ISBN列
+    case 1: sortBy = SortBy::TITLE; break;      // 书名列
+    case 2: sortBy = SortBy::AUTHOR; break;     // 作者列
+    case 3: sortBy = SortBy::PUBLISHER; break;  // 出版社列
+    case 4: sortBy = SortBy::YEAR; break;       // 出版年份列
+    default: return;
+    }
+    
+    // 如果点击的是同一列，切换排序方向
+    if (bookTableSortState.lastSortedColumn == logicalIndex) {
+        bookTableSortState.ascending = !bookTableSortState.ascending;
+    } else {
+        bookTableSortState.lastSortedColumn = logicalIndex;
+        bookTableSortState.ascending = false; // 默认降序
+    }
+    
+    SortOrder order = bookTableSortState.ascending ? SortOrder::ASCENDING : SortOrder::DESCENDING;
+    
+    // 获取排序后的图书列表
+    MyVector<Book> sortedBooks = bookManager.getSortedBooks(sortBy, order);
+    
+    // 刷新表格显示
+    QTableWidget* bookTable = qobject_cast<QTableWidget*>(mainStack->widget(BOOK_PAGE)->findChild<QTableWidget*>());
+    if (bookTable) {
+        bookTable->setUpdatesEnabled(false);
+        bookTable->blockSignals(true);
+        
+        bookTable->setRowCount(static_cast<int>(sortedBooks.getSize()));
+        
+        for (size_t i = 0; i < sortedBooks.getSize(); ++i) {
+            const Book &book = sortedBooks[i];
+            bookTable->setItem(static_cast<int>(i), 0, new QTableWidgetItem(QString::fromStdString(book.getIsbn())));
+            bookTable->setItem(static_cast<int>(i), 1, new QTableWidgetItem(QString::fromStdString(book.getTitle())));
+            bookTable->setItem(static_cast<int>(i), 2, new QTableWidgetItem(QString::fromStdString(book.getAuthor())));
+            bookTable->setItem(static_cast<int>(i), 3, new QTableWidgetItem(QString::fromStdString(book.getPublisher())));
+            bookTable->setItem(static_cast<int>(i), 4, new QTableWidgetItem(QString::number(book.getPublishYear())));
+        }
+        
+        bookTable->blockSignals(false);
+        bookTable->setUpdatesEnabled(true);
+    }
+}
+
+void Widget::onBorrowTableHeaderClicked(int logicalIndex)
+{
+    // 跳过操作列（最后一列）
+    if (logicalIndex >= 7) {
+        return;
+    }
+    
+    // 确定排序方向和字段
+    BorrowSortBy sortBy;
+    switch (logicalIndex) {
+    case 0: sortBy = BorrowSortBy::RECORD_ID; break;    // 记录ID列
+    case 1: sortBy = BorrowSortBy::ISBN; break;         // ISBN列
+    case 2: sortBy = BorrowSortBy::USERNAME; break;     // 用户名列
+    case 3: sortBy = BorrowSortBy::BORROW_DATE; break;  // 借阅日期列
+    case 4: sortBy = BorrowSortBy::DUE_DATE; break;     // 到期日期列
+    case 5: sortBy = BorrowSortBy::RETURN_DATE; break;  // 归还日期列
+    case 6: sortBy = BorrowSortBy::STATUS; break;       // 状态列
+    default: return;
+    }
+    
+    // 如果点击的是同一列，切换排序方向
+    if (borrowTableSortState.lastSortedColumn == logicalIndex) {
+        borrowTableSortState.ascending = !borrowTableSortState.ascending;
+    } else {
+        borrowTableSortState.lastSortedColumn = logicalIndex;
+        borrowTableSortState.ascending = false; // 默认降序
+    }
+    
+    BorrowSortOrder order = borrowTableSortState.ascending ? BorrowSortOrder::ASCENDING : BorrowSortOrder::DESCENDING;
+    
+    // 获取排序后的借阅记录列表
+    MyVector<BorrowRecord> sortedRecords = borrowManager->getSortedBorrowRecords(sortBy, order);
+    
+    // 刷新表格显示
+    QTableWidget* borrowTable = qobject_cast<QTableWidget*>(mainStack->widget(BORROW_PAGE)->findChild<QTableWidget*>());
+    if (borrowTable) {
+        borrowTable->setUpdatesEnabled(false);
+        borrowTable->blockSignals(true);
+        
+        borrowTable->setRowCount(static_cast<int>(sortedRecords.getSize()));
+        
+        for (size_t i = 0; i < sortedRecords.getSize(); ++i) {
+            const BorrowRecord &record = sortedRecords[i];
+            borrowTable->setItem(static_cast<int>(i), 0, new QTableWidgetItem(QString::fromStdString(record.getRecordId())));
+            borrowTable->setItem(static_cast<int>(i), 1, new QTableWidgetItem(QString::fromStdString(record.getIsbn())));
+            borrowTable->setItem(static_cast<int>(i), 2, new QTableWidgetItem(QString::fromStdString(record.getUsername())));
+            borrowTable->setItem(static_cast<int>(i), 3, new QTableWidgetItem(QString::fromStdString(record.getBorrowDateStr())));
+            borrowTable->setItem(static_cast<int>(i), 4, new QTableWidgetItem(QString::fromStdString(record.getDueDateStr())));
+            borrowTable->setItem(static_cast<int>(i), 5, new QTableWidgetItem(QString::fromStdString(record.getReturnDateStr())));
+            borrowTable->setItem(static_cast<int>(i), 6, new QTableWidgetItem(QString::fromStdString(record.getStatus())));
+        }
+        
+        borrowTable->blockSignals(false);
+        borrowTable->setUpdatesEnabled(true);
+    }
+}
+
+void Widget::onBorrowPageTableHeaderClicked(int logicalIndex)
+{
+    // 跳过操作列（最后一列）
+    if (logicalIndex >= 5) {
+        return;
+    }
+    
+    // 如果点击的是同一列，切换排序方向
+    if (borrowPageTableSortState.lastSortedColumn == logicalIndex) {
+        borrowPageTableSortState.ascending = !borrowPageTableSortState.ascending;
+    } else {
+        borrowPageTableSortState.lastSortedColumn = logicalIndex;
+        borrowPageTableSortState.ascending = false; // 默认降序
+    }
+    
+    // 使用refreshBorrowPageTable方法刷新表格，它会自动应用当前排序状态
+    QTableWidget* borrowPageTable = qobject_cast<QTableWidget*>(mainStack->widget(BORROW_BOOK_PAGE)->findChild<QTableWidget*>());
+    if (borrowPageTable) {
+        // 获取当前的搜索状态
+        QComboBox* fieldCombo = qobject_cast<QComboBox*>(mainStack->widget(BORROW_BOOK_PAGE)->findChild<QComboBox*>());
+        QLineEdit* searchEdit = qobject_cast<QLineEdit*>(mainStack->widget(BORROW_BOOK_PAGE)->findChild<QLineEdit*>());
+        
+        int fieldIndex = fieldCombo ? fieldCombo->currentIndex() : 0;
+        QString keyword = searchEdit ? searchEdit->text() : "";
+        int pageSize = cmbPageSize->currentText().toInt();
+        
+        refreshBorrowPageTable(borrowPageTable, fieldIndex, keyword, currentBorrowPage, pageSize);
+    }
 }

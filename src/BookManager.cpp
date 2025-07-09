@@ -166,6 +166,9 @@ size_t BookManager::getBookCount() const {
 static bool compareBooks(const Book& a, const Book& b, SortBy sortBy, SortOrder order) {
     bool result;
     switch (sortBy) {
+        case SortBy::ISBN:
+            result = a.getIsbn() < b.getIsbn();
+            break;
         case SortBy::TITLE:
             result = a.getTitle() < b.getTitle();
             break;

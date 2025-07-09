@@ -10,6 +10,7 @@
 class QString;
 
 enum class SortBy {
+    ISBN,
     TITLE,
     AUTHOR,
     PUBLISHER,
