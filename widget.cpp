@@ -2056,6 +2056,7 @@ void Widget::onEditUser(QTableWidget *table)
     QLineEdit *usernameEdit = new QLineEdit(oldUsername, &dialog);
     QLineEdit *passwordEdit = new QLineEdit(QString::fromStdString(userPtr->password), &dialog);
     passwordEdit->setEchoMode(QLineEdit::Password);
+    //qcombobox 下拉框
     QComboBox *roleCombo = new QComboBox(&dialog);
     roleCombo->addItem("普通用户", USER);
     roleCombo->addItem("管理员", ADMIN);
@@ -2126,6 +2127,7 @@ void Widget::onDeleteUser(QTableWidget *table)
     }
 }
 
+// 导入书籍
 void Widget::onImportBooks(QTableWidget *table)
 {
     QString fileName = QFileDialog::getOpenFileName(this, "选择书籍文件", "", "Text Files (*.txt);;All Files (*)");
@@ -2143,6 +2145,7 @@ void Widget::onImportBooks(QTableWidget *table)
         file.readLine();
         ++totalLines;
     }
+    //重置文件指针
     file.seek(0);
 
     QProgressDialog *progress = new QProgressDialog("正在导入书籍...", "取消", 0, totalLines, this);
@@ -2150,20 +2153,26 @@ void Widget::onImportBooks(QTableWidget *table)
     progress->setMinimumDuration(0);
     progress->setValue(0);
 
+    // 创建进度条
     QFutureWatcher<int> *watcher = new QFutureWatcher<int>(this);
     connect(progress, &QProgressDialog::canceled, watcher, &QFutureWatcher<int>::cancel);
 
     auto importTask = [fileName, totalLines, this, progress, watcher]() -> int {
         QFile file(fileName);
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return 0;
+        // 创建文本流
         QTextStream in(&file);
         int count = 0;
+        // 计算进度步长
+        //qmax 返回a和b中的较大值
         int progressStep = qMax(1, totalLines / 1000);
         while (!in.atEnd()) {
             if (watcher->isCanceled()) break;
+            // 读取一行并去除空格
             QString line = in.readLine().trimmed();
             if (line.isEmpty()) continue;
             QString jsonStr = line;
+            // 替换单引号为双引号
             jsonStr.replace("'", "\"");
             QJsonParseError err;
             QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8(), &err);
@@ -2178,29 +2187,35 @@ void Widget::onImportBooks(QTableWidget *table)
             try {
                 Book book(isbn.toStdString(), title.toStdString(), author.toStdString(), publisher.toStdString(), year);
                 bookManager.addBookNoRebuild(book);
-            } catch (...) {
+            } catch (const std::exception &e) {
                 // 重复或异常跳过
+                qDebug() << "导入书籍失败:" << e.what();
             }
             ++count;
+            //判断是否需要更新进度条
             if (count % progressStep == 0) {
+                // 使用Qt的信号槽机制更新进度条
                 QMetaObject::invokeMethod(progress, "setValue", Qt::QueuedConnection, Q_ARG(int, count));
             }
         }
-
+        // 重建图书哈希表
         bookManager.rebuildBookHashTable();
+        // 更新进度条
         QMetaObject::invokeMethod(progress, "setValue", Qt::QueuedConnection, Q_ARG(int, totalLines));
         return count;
     };
 
+    // 连接信号槽
+    // 导入完成后立即保存图书数据到文件，确保数据同步
     connect(watcher, &QFutureWatcher<int>::finished, this,[=]{
         progress->close();
-        // 导入完成后立即保存图书数据到文件，确保数据同步
         QString bookDataPath = QCoreApplication::applicationDirPath() + "/books.json";
         if (bookManager.saveToFile(bookDataPath)) {
             qDebug() << "导入后图书数据已保存到文件:" << bookDataPath;
         } else {
             qDebug() << "导入后图书数据保存失败:" << bookDataPath;
         }
+        // 刷新图书表
         refreshBookTable(table);
         QMessageBox::information(this, "导入完成", QString("成功导入%1条书籍信息。\n(如有重复或异常已自动跳过)").arg(watcher->result()));
         watcher->deleteLater();
@@ -2500,6 +2515,7 @@ void Widget::refreshBorrowDataFromFile()
     }
 }
 
+// 更新分页信息
 void Widget::updatePageInfo(int pageNum, int pageSize, int totalResults)
 {
     totalBorrowPage = (totalResults + pageSize - 1) / pageSize;
