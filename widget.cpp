@@ -5,6 +5,7 @@
 #include "include/User.h"
 #include "include/BorrowManager.h"
 #include "include/PermissionManager.h"
+#include "include/MyQueue.h"
 #include <QVBoxLayout>
 #include <QPushButton>
 #include <QStackedWidget>
@@ -63,6 +64,8 @@ Widget::Widget(QWidget *parent)
     
     // 默认显示借阅图书页面（无需登录）
     switchToPage(BORROW_BOOK_PAGE);
+    
+    loadAllData(); // 自动加载所有持久化数据
 }
 
 Widget::~Widget()
@@ -76,6 +79,8 @@ Widget::~Widget()
     delete borrowManager;
     delete permissionManager;
     delete ui;
+    
+    saveAllData(); // 自动保存所有持久化数据
 }
 
 //设置UI
@@ -830,7 +835,6 @@ void Widget::setupCustomUi()
     
     // 更新登录状态显示
     updateLoginStatus();
-
 }
 
 // 全局登录对话框
@@ -1850,7 +1854,6 @@ void Widget::onBorrowBook(QTableWidget *table)
         QMessageBox::warning(this, "未登录", "请先登录后再进行借书操作。");
         return;
     }
-    
     // 弹窗选择图书
     QDialog dialog(this);
     dialog.setWindowTitle("借书");
@@ -1870,17 +1873,12 @@ void Widget::onBorrowBook(QTableWidget *table)
         QString isbn = bookCombo->currentData().toString();
         try {
             borrowManager->borrowBook(isbn.toStdString(), currentUser.toStdString());
-            // 立即保存借阅记录到文件，确保数据同步
-            QString borrowDataPath = QCoreApplication::applicationDirPath() + "/borrow_records.json";
-            if (borrowManager->saveToFile(borrowDataPath)) {
-                qDebug() << "借阅记录已保存到文件:" << borrowDataPath;
-            } else {
-                qDebug() << "借阅记录保存失败:" << borrowDataPath;
-            }
+            borrowManager->saveToFile("borrow_records.json");
+            borrowManager->saveWaitingQueues("waiting_queues.json");
             refreshBorrowTable(table);
             QMessageBox::information(this, "借书成功", "图书借阅成功！");
         } catch (const std::exception &e) {
-            QMessageBox::warning(this, "借书失败", e.what());
+            QMessageBox::information(this, "借书提示", e.what());
         }
     }
 }
@@ -1891,32 +1889,27 @@ void Widget::onReturnBook(QTableWidget *table)
         QMessageBox::warning(this, "未登录", "请先登录后再进行还书操作。");
         return;
     }
-    
     int row = table->currentRow();
     if (row < 0) {
         QMessageBox::warning(this, "未选择", "请先选择要归还的借阅记录。");
         return;
     }
-    
-    // 检查权限：普通用户只能归还自己的记录，管理员可以归还所有记录
     QString recordUsername = table->item(row, 2)->text();
     if (!hasPermission(ADMIN) && recordUsername != currentUser) {
         QMessageBox::warning(this, "权限不足", "您只能归还自己的借阅记录。");
         return;
     }
-    
-    int recordId = table->item(row, 0)->text().toInt();
+    QString recordId = table->item(row, 0)->text();
     try {
-        borrowManager->returnBook(recordId);
-        // 立即保存借阅记录到文件，确保数据同步
-        QString borrowDataPath = QCoreApplication::applicationDirPath() + "/borrow_records.json";
-        if (borrowManager->saveToFile(borrowDataPath)) {
-            qDebug() << "借阅记录已保存到文件:" << borrowDataPath;
-        } else {
-            qDebug() << "借阅记录保存失败:" << borrowDataPath;
-        }
+        bool ok = borrowManager->returnBookByRecordId(recordId.toStdString());
+        borrowManager->saveToFile("borrow_records.json");
+        borrowManager->saveWaitingQueues("waiting_queues.json");
         refreshBorrowTable(table);
-        QMessageBox::information(this, "还书成功", "图书归还成功！");
+        if (ok) {
+            QMessageBox::information(this, "还书成功", "图书归还成功！");
+        } else {
+            QMessageBox::warning(this, "还书失败", "未找到借阅记录或已归还");
+        }
     } catch (const std::exception &e) {
         QMessageBox::warning(this, "还书失败", e.what());
     }
@@ -2592,4 +2585,17 @@ void Widget::onBorrowPageTableHeaderClicked(int logicalIndex)
         
         refreshBorrowPageTable(borrowPageTable, fieldIndex, keyword, currentBorrowPage, pageSize);
     }
+}
+
+void Widget::saveAllData() {
+    // 假设有成员 borrowManager
+    borrowManager->saveToFile("borrow_records.json");
+    borrowManager->saveWaitingQueues("waiting_queues.json");
+    // 可扩展：保存用户、图书等
+}
+
+void Widget::loadAllData() {
+    borrowManager->loadFromFile("borrow_records.json");
+    borrowManager->loadWaitingQueues("waiting_queues.json");
+    // 可扩展：加载用户、图书等
 }

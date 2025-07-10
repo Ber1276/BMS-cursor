@@ -8,6 +8,8 @@
 #include <QJsonValue>
 #include <QDebug>
 #include "../include/Mysort.h"
+#include "../include/MyQueue.h"
+#include <map>
 
 BorrowManager::BorrowManager(BookManager* bookManager, UserManager* userManager)
     : bookManager(bookManager), userManager(userManager) {}
@@ -21,14 +23,37 @@ bool BorrowManager::borrowBook(const std::string& isbn, const std::string& usern
     if (!book) {
         throw std::runtime_error("图书不存在");
     }
-    if (book->getStatus() == 1){
-        throw std::runtime_error("此书已借出");
+    // 检查用户是否已借阅此书
+    for (size_t i = 0; i < records.getSize(); i++) {
+        if (records[i].getBookIsbn() == isbn && 
+            records[i].getUsername() == username && 
+            !records[i].getIsReturned()) {
+            throw std::runtime_error("不可多次借阅同一本书");
+        }
     }
+    // 书已被借出，处理等待队列
+    if (book->getStatus() == 1) {
+        // 队列不存在则创建
+        if (waitingQueues.find(isbn) == waitingQueues.end()) {
+            waitingQueues[isbn] = MyQueue<std::string>();
+        }
+        MyQueue<std::string>& queue = waitingQueues[isbn];
+        if (queue.contains(username)) {
+            throw std::runtime_error("已在排队之中");
+        } else {
+            queue.enqueue(username);
+            saveWaitingQueues("waiting_queues.json"); // 实时保存队列
+            int pos = static_cast<int>(queue.size()) - 1;
+            throw std::runtime_error(("已添加到等待队列，前方还有" + std::to_string(pos) + "人在排队").c_str());
+        }
+    }
+    // 书可借，直接借阅
     time_t now = std::time(nullptr);
     time_t dueDate = now + (DEFAULT_BORROW_DAYS * 24 * 60 * 60);
     BorrowRecord record(isbn, username, now, dueDate);
     records.add(record);
     bookManager->updateBookStatus(isbn,1); //借出
+    saveToFile("borrow_records.json"); // 实时保存借阅记录
     return true;
 }
 
@@ -40,6 +65,30 @@ bool BorrowManager::returnBook(const std::string& isbn, const std::string& usern
             records[i].setReturnDate(std::time(nullptr));
             records[i].setIsReturned(true);
             bookManager->updateBookStatus(isbn,0); //归还
+            // 检查等待队列
+            auto it = waitingQueues.find(isbn);
+            if (it != waitingQueues.end()) {
+                MyQueue<std::string>& queue = it->second;
+                if (!queue.isEmpty()) {
+                    std::string nextUser = queue.front();
+                    queue.dequeue();
+                    saveWaitingQueues("waiting_queues.json"); // 实时保存队列
+                    // 自动为队首用户借阅
+                    try {
+                        borrowBook(isbn, nextUser);
+                        saveToFile("borrow_records.json"); // 自动借阅后保存记录
+                    } catch (const std::exception& e) {
+                        // 如果自动借阅失败（如用户已借阅等），忽略
+                    }
+                    // 如果队列空了，移除队列
+                    if (queue.isEmpty()) {
+                        waitingQueues.erase(it);
+                        saveWaitingQueues("waiting_queues.json");
+                    }
+                }
+            }
+            saveToFile("borrow_records.json");
+            saveWaitingQueues("waiting_queues.json");
             return true;
         }
     }
@@ -86,6 +135,41 @@ void BorrowManager::renewBook(int recordId) {
         }
     }
     throw std::runtime_error("未找到指定的借阅记录");
+}
+
+bool BorrowManager::returnBookByRecordId(const std::string& recordId) {
+    for (size_t i = 0; i < records.getSize(); i++) {
+        if (records[i].getRecordId() == recordId && !records[i].getIsReturned()) {
+            records[i].setReturnDate(std::time(nullptr));
+            records[i].setIsReturned(true);
+            bookManager->updateBookStatus(records[i].getBookIsbn(), 0);
+            // 自动处理等待队列
+            std::string isbn = records[i].getBookIsbn();
+            auto it = waitingQueues.find(isbn);
+            if (it != waitingQueues.end()) {
+                MyQueue<std::string>& queue = it->second;
+                if (!queue.isEmpty()) {
+                    std::string nextUser = queue.front();
+                    queue.dequeue();
+                    saveWaitingQueues("waiting_queues.json"); // 实时保存队列
+                    try {
+                        borrowBook(isbn, nextUser);
+                        saveToFile("borrow_records.json"); // 自动借阅后保存记录
+                    } catch (const std::exception& e) {
+                        // 自动借阅失败忽略
+                    }
+                    if (queue.isEmpty()) {
+                        waitingQueues.erase(it);
+                        saveWaitingQueues("waiting_queues.json");
+                    }
+                }
+            }
+            saveToFile("borrow_records.json");
+            saveWaitingQueues("waiting_queues.json");
+            return true;
+        }
+    }
+    return false;
 }
 
 MyVector<BorrowRecord> BorrowManager::getUserBorrowRecords(const std::string& username) {
@@ -324,6 +408,58 @@ bool BorrowManager::loadFromFile(const QString& filename) {
     
     qDebug() << "成功加载" << successCount << "条借阅记录从文件:" << filename;
     return successCount > 0;
+}
+
+int BorrowManager::getWaitingCount(const std::string& isbn) const {
+    auto it = waitingQueues.find(isbn);
+    if (it == waitingQueues.end()) return 0;
+    return static_cast<int>(it->second.size());
+}
+
+bool BorrowManager::isUserInQueue(const std::string& isbn, const std::string& username) const {
+    auto it = waitingQueues.find(isbn);
+    if (it == waitingQueues.end()) return false;
+    return it->second.contains(username);
+}
+
+void BorrowManager::saveWaitingQueues(const QString& filename) const {
+    QFile file(filename);
+    if (!file.open(QIODevice::WriteOnly)) {
+        qDebug() << "无法打开队列文件进行写入:" << filename;
+        return;
+    }
+    QJsonObject rootObj;
+    for (const auto& pair : waitingQueues) {
+        rootObj[QString::fromStdString(pair.first)] = pair.second.toJsonArray();
+    }
+    QJsonDocument doc(rootObj);
+    file.write(doc.toJson(QJsonDocument::Indented));
+    file.close();
+}
+
+bool BorrowManager::loadWaitingQueues(const QString& filename) {
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qDebug() << "无法打开队列文件进行读取:" << filename;
+        return false;
+    }
+    QByteArray jsonData = file.readAll();
+    file.close();
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(jsonData, &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        qDebug() << "队列JSON解析错误:" << parseError.errorString();
+        return false;
+    }
+    QJsonObject rootObj = doc.object();
+    waitingQueues.clear();
+    for (auto it = rootObj.begin(); it != rootObj.end(); ++it) {
+        std::string isbn = it.key().toStdString();
+        MyQueue<std::string> queue;
+        queue.fromJsonArray(it.value().toArray());
+        waitingQueues[isbn] = queue;
+    }
+    return true;
 }
 
 // 排序功能实现
