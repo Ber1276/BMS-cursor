@@ -36,6 +36,10 @@
 #include "include/User.h"
 #include "include/BorrowManager.h"
 #include "include/PermissionManager.h"
+#include "include/MyStack.h"
+#include <QListView>
+#include <QStandardItem>
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -75,6 +79,8 @@ private slots:
     void onBookTableHeaderClicked(int logicalIndex);
     void onBorrowTableHeaderClicked(int logicalIndex);
     void onBorrowPageTableHeaderClicked(int logicalIndex);
+    // 搜索历史函数
+    void onHistoryItemSelected(const QModelIndex& index);
 
 private:
     Ui::Widget *ui;
@@ -89,6 +95,11 @@ private:
     QPushButton *btnBorrow;
     QPushButton *btnUser;
     QPushButton *btnBorrowBookPage;
+    QLineEdit *borrowPage_searchEdit;
+    QListView* historyView;
+    QStandardItemModel* historyModel;
+    QWidget* historyPopup;
+    QTimer* inputTimer;
     
     // 登录状态管理
     bool isLoggedIn = false;
@@ -146,9 +157,19 @@ private:
     int totalBorrowPage = 1;
     const int DEFAULT_PAGE_SIZE = 20;
 
+    MyStack<QString> searchHistory;  // 用于保存搜索记录的栈
+    const int MAX_HISTORY = 10;     // 最大保存记录数
+
     //更新页码信息
     void updatePageInfo(int pageNum, int pageSize, int totalResults);
 
     void handleBorrowPageBorrowClicked(const QString &isbn, const QString &title);
+
+    // 搜索历史
+    void setupSearchHistoryPopup();
+    void showSearchHistory();
+    void hideSearchHistory();
+    void updateSearchHistory();
+    void onFocusChanged(QWidget* old, QWidget* now);
 };
 #endif // WIDGET_H

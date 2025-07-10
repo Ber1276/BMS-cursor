@@ -33,6 +33,7 @@
 #include <QCoreApplication>
 #include <QApplication>
 #include <QDir>
+#include <QTimer>
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -437,6 +438,7 @@ void Widget::setupCustomUi()
     QVBoxLayout *borrowPage_layout = new QVBoxLayout(borrowPage_widget);
 
     // 搜索区
+    // 初始化搜索历史弹窗
     QHBoxLayout *borrowPage_searchLayout = new QHBoxLayout();
     borrowPage_searchLayout->setSpacing(10);
     borrowPage_searchLayout->setContentsMargins(15, 15, 15, 15);
@@ -449,7 +451,7 @@ void Widget::setupCustomUi()
     borrowPageFieldCombo->addItem("出版年份");
     borrowPageFieldCombo->setFixedWidth(120);
     
-    QLineEdit *borrowPage_searchEdit = new QLineEdit(borrowPage_widget);
+    borrowPage_searchEdit = new QLineEdit(borrowPage_widget);
     borrowPage_searchEdit->setPlaceholderText("请输入书名、作者或ISBN搜索");
     borrowPage_searchEdit->setMinimumWidth(200);
     
@@ -465,6 +467,10 @@ void Widget::setupCustomUi()
     borrowPage_searchLayout->addWidget(borrowPage_searchBtn);
     borrowPage_searchLayout->addStretch();
     borrowPage_layout->insertLayout(0,borrowPage_searchLayout);
+
+
+    setupSearchHistoryPopup();
+    historyPopup->hide();
 
     // 表格
     QTableWidget *borrowPage_table = new QTableWidget(borrowPage_widget);
@@ -693,13 +699,20 @@ void Widget::setupCustomUi()
 
     // 借阅图书信号槽
     connect(borrowPage_searchBtn, &QPushButton::clicked, this, [=]{ //搜索按钮
+        searchHistory.push(borrowPage_searchEdit->text());
+        updateSearchHistory();
         currentBorrowPage = 1;
         refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, cmbPageSize->currentText().toInt());
     });
     connect(borrowPage_searchEdit, &QLineEdit::returnPressed, this, [=]{ //搜索框
+        searchHistory.push(borrowPage_searchEdit->text());
+        updateSearchHistory();
         currentBorrowPage = 1;
         refreshBorrowPageTable(borrowPage_table, borrowPageFieldCombo->currentIndex(), borrowPage_searchEdit->text(), currentBorrowPage, cmbPageSize->currentText().toInt());
     });
+    // 搜索框聚焦时显示历史
+    connect(qApp, &QApplication::focusChanged, this, &Widget::onFocusChanged);
+
     //分页控制信号槽
     connect(btnFirst, &QPushButton::clicked, this, [=](){ //首页
         currentBorrowPage = 1;
@@ -2575,5 +2588,89 @@ void Widget::onBorrowPageTableHeaderClicked(int logicalIndex)
         int pageSize = cmbPageSize->currentText().toInt();
         
         refreshBorrowPageTable(borrowPageTable, fieldIndex, keyword, currentBorrowPage, pageSize);
+    }
+}
+
+void Widget::setupSearchHistoryPopup() {
+    historyModel = new QStandardItemModel(this);
+    historyView = new QListView(this);
+    historyView->setModel(historyModel);
+    historyView->setSelectionMode(QAbstractItemView::SingleSelection);
+    historyView->setFocusPolicy(Qt::NoFocus); // 禁止 QListView 获取焦点
+
+    historyPopup = new QWidget(this);
+    QVBoxLayout* popupLayout = new QVBoxLayout(historyPopup);
+    popupLayout->setContentsMargins(0, 0, 0, 0);
+    popupLayout->addWidget(historyView);
+    historyPopup->setStyleSheet("background:white; border:1px solid #ccc;");
+    historyPopup->setFixedHeight(150); // 设置固定高度
+    QPoint pos = borrowPage_searchEdit->mapToGlobal(QPoint(0, borrowPage_searchEdit->height()));
+    historyPopup->move(pos.x(), pos.y());
+    historyPopup->resize(borrowPage_searchEdit->width(), 150);
+
+    connect(historyView->selectionModel(), &QItemSelectionModel::currentChanged,
+            this, &Widget::onHistoryItemSelected);
+
+    MyStack<QString> temp = searchHistory;
+    while(!temp.empty()){
+        QStandardItem* modelItem = new QStandardItem(temp.top());
+        historyModel->appendRow(modelItem);
+        temp.pop();
+    }
+
+}
+
+void Widget::showSearchHistory() {
+    if (historyModel->rowCount() == 0) {
+        hideSearchHistory();
+        return;
+    }
+
+    // 计算弹窗位置（输入框正下方）
+    QPoint pos = borrowPage_searchEdit->mapToGlobal(QPoint(0, borrowPage_searchEdit->height()));
+    historyPopup->move(pos.x(), pos.y());
+    historyPopup->resize(borrowPage_searchEdit->width(), 150);
+    historyPopup->show();
+
+    borrowPage_searchEdit->setFocus();
+    borrowPage_searchEdit->setCursorPosition(borrowPage_searchEdit->text().length());
+}
+
+void Widget::hideSearchHistory() {
+    historyPopup->hide();
+}
+
+void Widget::onHistoryItemSelected(const QModelIndex& index) {
+    if (index.isValid()) {
+        QString selected = index.data().toString();
+
+        // 设置文本
+        borrowPage_searchEdit->setText(selected);
+
+        hideSearchHistory();
+        // 强制将焦点返回到 QLineEdit
+        borrowPage_searchEdit->setFocus();
+        borrowPage_searchEdit->setCursorPosition(borrowPage_searchEdit->text().length());
+    }
+}
+
+//更新搜索记录
+void Widget::updateSearchHistory(){
+    historyModel->clear();
+    MyStack<QString> temp = searchHistory;
+    while(!temp.empty()){
+        QStandardItem* modelItem = new QStandardItem(temp.top());
+        historyModel->appendRow(modelItem);
+        temp.pop();
+    }
+}
+
+// 定义槽函数
+void Widget::onFocusChanged(QWidget* old, QWidget* now) {
+    Q_UNUSED(old);
+    if (now != borrowPage_searchEdit && now != historyPopup) {
+        hideSearchHistory(); // 失焦时隐藏弹窗
+    }else {
+        showSearchHistory();
     }
 }
