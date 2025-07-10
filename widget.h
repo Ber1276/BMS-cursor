@@ -36,10 +36,10 @@
 #include "include/User.h"
 #include "include/BorrowManager.h"
 #include "include/PermissionManager.h"
+#include "include/MyQueue.h"
 #include "include/MyStack.h"
 #include <QListView>
 #include <QStandardItem>
-
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -54,6 +54,8 @@ class Widget : public QWidget
 public:
     Widget(QWidget *parent = nullptr);
     ~Widget();
+    void saveAllData(); // 新增：保存所有持久化数据（含队列）
+    void loadAllData(); // 新增：加载所有持久化数据（含队列）
 
 private slots:
     void refreshBookTable(class QTableWidget *table);

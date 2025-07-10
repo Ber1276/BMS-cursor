@@ -5,6 +5,8 @@
 #include "BorrowRecord.h"
 #include "BookManager.h"
 #include "User.h"
+#include "MyQueue.h"
+#include <map>
 
 // 前向声明
 class QString;
@@ -31,6 +33,8 @@ private:
     BookManager* bookManager;
     UserManager* userManager;
     static const int DEFAULT_BORROW_DAYS = 30;
+    // 新增：等待队列，key为isbn，value为用户名队列
+    std::map<std::string, MyQueue<std::string>> waitingQueues;
     
     // 排序辅助方法
     void sortBorrowRecords(MyVector<BorrowRecord> &recordList, BorrowSortBy sortBy, BorrowSortOrder order) const;
@@ -44,6 +48,7 @@ public:
     // 通过ID操作的方法
     void returnBook(int recordId);
     void renewBook(int recordId);
+    bool returnBookByRecordId(const std::string& recordId);
     
     MyVector<BorrowRecord> getUserBorrowRecords(const std::string& username);
     MyVector<BorrowRecord> getBookBorrowRecords(const std::string& isbn);
@@ -68,6 +73,12 @@ public:
     // 数据持久化方法
     bool saveToFile(const QString& filename) const;
     bool loadFromFile(const QString& filename);
+
+    // 新增：等待队列相关
+    int getWaitingCount(const std::string& isbn) const;
+    bool isUserInQueue(const std::string& isbn, const std::string& username) const;
+    void saveWaitingQueues(const QString& filename) const;
+    bool loadWaitingQueues(const QString& filename);
 };
 
 #endif 
